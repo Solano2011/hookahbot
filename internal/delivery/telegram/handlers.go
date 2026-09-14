@@ -48,6 +48,10 @@ func (h *Handlers) InitRoutes(b *tele.Bot) {
 
 	b.Handle(&BtnAdminRefresh, h.handleAdminRefresh)
 	b.Handle(&BtnAdminResetAll, h.handleAdminResetAll)
+
+	b.Handle("/admin", h.handleAdminCommand)
+	b.Handle("\fadmin_all", h.handleAdminAll)
+	b.Handle("\fadmin_clear", h.handleAdminClear)
 }
 
 func (h *Handlers) isAdmin(userID int64) bool {
@@ -304,4 +308,56 @@ func (h *Handlers) handleAdminResetAll(c tele.Context) error {
 	_ = h.bookingService.ResetAllBookings(ctx)
 	_ = c.Delete()
 	return c.Send(" *Все брони успешно аннулированы.*", BuildAdminMenu(), tele.ModeMarkdown)
+}
+
+// 1. Сама команда /admin
+func (h *Handlers) handleAdminCommand(c tele.Context) error {
+	// Секретный фейсконтроль: пускаем только админа
+	if c.Sender().ID != h.adminID {
+		return c.Send("У вас нет доступа к этой команде 🛑")
+	}
+
+	// Создаем кнопки прямо здесь (чтобы не захламлять markups.go)
+	m := &tele.ReplyMarkup{}
+	btnAll := m.Data("📋 Посмотреть все брони", "admin_all")
+	btnClear := m.Data("🗑 Очистить базу", "admin_clear")
+
+	m.Inline(
+		m.Row(btnAll),
+		m.Row(btnClear),
+	)
+
+	return c.Send("🛠 *Панель управления баром*\nВыберите действие:", m, tele.ModeMarkdown)
+}
+
+// 2. Обработчик просмотра всех броней
+func (h *Handlers) handleAdminAll(c tele.Context) error {
+	ctx := context.Background()
+	bookings, err := h.bookingService.GetAllActiveBookings(ctx)
+	if err != nil {
+		return c.Send("Ошибка при получении базы")
+	}
+
+	if len(bookings) == 0 {
+		return c.Edit("База пуста. Пока никто не забронировал столик 🥲")
+	}
+
+	text := "📋 *Список текущих броней:*\n\n"
+	for _, b := range bookings {
+		text += fmt.Sprintf("👤 ID Гостя: `%d`\n📍 Зал: %s\n🪑 Стол: %s\n⏰ Время: %s\n〰️〰️〰️〰️\n",
+			b.UserID, b.Zone, b.Table, b.TimeSlot)
+	}
+
+	return c.Edit(text, tele.ModeMarkdown)
+}
+
+// 3. Обработчик очистки базы
+func (h *Handlers) handleAdminClear(c tele.Context) error {
+	ctx := context.Background()
+
+	if err := h.bookingService.ResetAllBookings(ctx); err != nil {
+		return c.Send("Ошибка при очистке базы")
+	}
+
+	return c.Edit("✅ *База успешно очищена!*\n\nВсе столы снова свободны. (Идеально для начала нового рабочего дня)", tele.ModeMarkdown)
 }

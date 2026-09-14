@@ -1,13 +1,21 @@
 package main
 
 import (
-	"hookah-bot/internal/app"
 	"log"
 	"os"
 	"strconv"
+
+	"hookah-bot/internal/app"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Загружаем переменные из файла .env
+	if err := godotenv.Load(); err != nil {
+		log.Println("Файл .env не найден, используем системные переменные")
+	}
+
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
 		log.Fatal("Укажите BOT_TOKEN в переменных окружения")
