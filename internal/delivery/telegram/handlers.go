@@ -38,7 +38,6 @@ func (h *Handlers) InitRoutes(b *tele.Bot) {
 	b.Handle(&BtnBook, h.handleBookBtn)
 	b.Handle(&BtnMyBooking, h.handleMyBookingBtn)
 	b.Handle(&BtnCancelBooking, h.handleCancelBooking)
-	b.Handle(&BtnMenu, h.handleMenuBtn)
 	b.Handle(&BtnContacts, h.handleContactsBtn)
 
 	b.Handle(&BtnZone, h.handleZoneSelect)
@@ -221,14 +220,6 @@ func (h *Handlers) handleCancelBooking(c tele.Context) error {
 	_ = h.bookingService.CancelBooking(ctx, c.Sender().ID)
 	_ = c.Delete()
 	return c.Send(" Бронь успешно аннулирована.", BuildMainMenu())
-}
-
-func (h *Handlers) handleMenuBtn(c tele.Context) error {
-	_ = c.Delete()
-	text := " *Табачная & Барная карта*\n\n*Кальянная классика* — 1 400 ₽\n*Авторские чаи (800 мл)* — 550 ₽"
-	m := &tele.ReplyMarkup{}
-	m.Inline(m.Row(BtnBook), m.Row(BtnBackToMain))
-	return c.Send(text, m, tele.ModeMarkdown)
 }
 
 func (h *Handlers) handleContactsBtn(c tele.Context) error {

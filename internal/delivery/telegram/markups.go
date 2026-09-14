@@ -7,7 +7,7 @@ var (
 
 	// Главное меню
 	BtnBook      = Menu.Data(" Забронировать стол", "btn_book")
-	BtnMenu      = Menu.Data(" Меню & Табачная карта", "btn_menu")
+	BtnMenu      = Menu.WebApp(" Меню & Табачная карта", &tele.WebApp{URL: "https://satirical-starlight-scraggly.ngrok-free.dev/?start=menu"})
 	BtnMyBooking = Menu.Data(" Моя бронь", "btn_my_booking")
 	BtnContacts  = Menu.Data(" Локация & Контакты", "btn_contacts")
 
