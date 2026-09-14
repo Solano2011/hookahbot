@@ -122,16 +122,49 @@
         function openDrinks() { document.getElementById('drinks-modal').classList.add('active'); }
         function closeDrinks() { document.getElementById('drinks-modal').classList.remove('active'); }
 
-        function selectTable(name, element) {
-            selectedTableName = name;
-            selectedTime = "";
-            document.querySelectorAll('.table-group').forEach(t => t.classList.remove('selected'));
-            element.classList.add('selected');
-            document.getElementById('timePicker').classList.add('active');
-            document.getElementById('timeTitle').innerText = "Время для: " + name;
-            document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
-            tg.MainButton.hide(); 
-        }
+       // Твоя переменная для стола может называться selectedTableName или currentTable
+// Используй ту, которая была у тебя изначально!
+
+function selectTable(tableName, element) {
+    // 1. Сохраняем название стола и выделяем кнопку (твой старый код)
+    selectedTableName = tableName; 
+    document.querySelectorAll('.table-chip').forEach(c => c.classList.remove('selected'));
+    element.classList.add('selected');
+
+    // 2. Стучимся на сервер за свежим расписанием ИМЕННО СЕЙЧАС
+    fetch('/api/availability')
+        .then(response => response.json())
+        .then(data => {
+            // Получаем занятые часы конкретно для этого стола
+            let takenTimes = data[tableName] || [];
+            
+            // 3. Проходимся по кнопкам времени
+            document.querySelectorAll('.time-chip').forEach(chip => {
+                let time = chip.innerText.trim(); // trim() убирает случайные пробелы
+                
+                if (takenTimes.includes(time)) {
+                    // Красим в красный и блокируем
+                    chip.style.backgroundColor = '#4a1515';
+                    chip.style.color = '#ff6b6b';
+                    chip.style.pointerEvents = 'none';
+                    chip.classList.remove('selected');
+                    chip.style.opacity = '0.5';
+                } else {
+                    // Сбрасываем стили для свободных слотов
+                    chip.style.backgroundColor = ''; 
+                    chip.style.color = '';
+                    chip.style.pointerEvents = 'auto'; 
+                    chip.style.opacity = '1';
+                }
+            });
+            
+            // 4. Показываем блок со временем
+            document.getElementById('timePicker').style.display = 'block';
+        })
+        .catch(err => {
+            tg.showAlert("Не удалось проверить занятость столов");
+        });
+}
 
         function selectTime(time, element) {
             selectedTime = time;
@@ -143,20 +176,34 @@
         }
 
         tg.onEvent('mainButtonClicked', function(){
-            tg.MainButton.showProgress();
-            let payload = { table: selectedTableName, time: selectedTime, userId: tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0 };
-            fetch('/api/book', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            }).then(() => {
-                tg.MainButton.hideProgress();
-                tg.close(); 
-            }).catch(() => {
-                tg.MainButton.hideProgress();
-                tg.showAlert("Ошибка соединения");
-            });
-        });
+    let userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0;
+    
+    // ПОКАЖЕМ АЛЕРТ ПЕРЕД ОТПРАВКОЙ!
+   
+    
+    tg.MainButton.showProgress();
+    let payload = { 
+        table: selectedTableName, 
+        time: selectedTime, 
+        userId: userId 
+    };
+    
+    fetch('/api/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(response => {
+        tg.MainButton.hideProgress();
+        if (response.ok) {
+            tg.close();
+        } else {
+            tg.showAlert("Ошибка бронирования на сервере");
+        }
+    }).catch(() => {
+        tg.MainButton.hideProgress();
+        tg.showAlert("Ошибка соединения с сервером");
+    });
+});
     </script>
 </body>
 </html>

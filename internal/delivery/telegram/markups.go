@@ -37,10 +37,19 @@ func BuildMainMenu() *tele.ReplyMarkup {
 
 func BuildZonesMenu() *tele.ReplyMarkup {
 	m := &tele.ReplyMarkup{}
+	baseURL := "https://satirical-starlight-scraggly.ngrok-free.dev"
+
+	// Делаем первую кнопку открывашкой Web App!
+	btnLounge := m.WebApp(" Общий лаунж • Атмосферный зал", &tele.WebApp{URL: baseURL})
+
+	// Остальные залы остаются обычными кнопками, так как там нет карты
+	btnPS5 := m.Data(" PS5 Lounge • 4K TV & Звук", "zone", "Зона с PS5")
+	btnVIP := m.Data(" VIP-комната • До 8 человек", "zone", "VIP-комната")
+
 	m.Inline(
-		m.Row(m.Data(" Общий лаунж • Атмосферный зал", "zone", "Общий лаунж")),
-		m.Row(m.Data(" PS5 Lounge • 4K TV & Звук", "zone", "Зона с PS5")),
-		m.Row(m.Data(" VIP-комната • До 8 человек", "zone", "VIP-комната")),
+		m.Row(btnLounge),
+		m.Row(btnPS5),
+		m.Row(btnVIP),
 		m.Row(BtnBackToMain),
 	)
 	return m

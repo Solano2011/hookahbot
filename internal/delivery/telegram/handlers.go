@@ -92,33 +92,22 @@ func (h *Handlers) handleZoneSelect(c tele.Context) error {
 	_ = c.Delete()
 
 	// Вызов Mini App для Общего лаунжа
+	// Вызов Mini App для Общего лаунжа
 	if zone == "Общий лаунж" {
-		// Для кнопок под сообщением (Inline) дополнительные параметры не нужны
 		m := &tele.ReplyMarkup{}
-
-		// Базовый URL (твоя ссылка из ngrok)
 		baseURL := "https://satirical-starlight-scraggly.ngrok-free.dev"
 
-		// 1. Кнопка: Бронь стола (открывает схему)
 		btnBook := m.WebApp("Забронировать стол", &tele.WebApp{URL: baseURL})
-
-		// 2. Кнопка: Меню (открывает сразу вкладку меню через ?start=menu)
 		btnMenu := m.WebApp("Меню & Табачная карта", &tele.WebApp{URL: baseURL + "/?start=menu"})
 
-		// 3. Кнопка: Моя бронь (это обычная кнопка-колбэк, не Web App)
-		btnMyBook := m.Data("Моя бронь", "my_book")
-
-		// 4. Кнопка: Локация (тоже колбэк)
-		btnLocation := m.Data("Локация & Контакты", "loc")
-
-		// Размещаем кнопки точно как на твоем скриншоте:
+		// Удалили локальные btnMyBook и btnLocation!
+		// Вместо них используем глобальные BtnMyBooking и BtnContacts:
 		m.Inline(
-			m.Row(btnBook),            // 1-й ряд: одна широкая кнопка
-			m.Row(btnMenu, btnMyBook), // 2-й ряд: две кнопки делят ширину пополам
-			m.Row(btnLocation),        // 3-й ряд: одна широкая кнопка
+			m.Row(btnBook),
+			m.Row(btnMenu, BtnMyBooking),
+			m.Row(BtnContacts),
 		)
 
-		// Отправляем сообщение с нашим меню
 		return c.Send("Главное меню SMOKE LOUNGE:", m)
 	}
 
@@ -133,22 +122,68 @@ func (h *Handlers) handleWebApp(c tele.Context) error {
 	if c.Message().WebAppData == nil {
 		return nil
 	}
-	table := c.Message().WebAppData.Data
-	ctx := context.Background()
 
-	if err := h.bookingService.SetBookingTable(ctx, c.Sender().ID, table); err != nil {
+	rawData := c.Message().WebAppData.Data
+
+	// Ожидаем строку вида "Стол 3|20:00"
+	parts := strings.Split(rawData, "|")
+	if len(parts) != 2 {
+		return c.Send("Ошибка: Неверный формат данных от Web App.")
+	}
+
+	table := parts[0]
+	timeSlot := parts[1]
+
+	ctx := context.Background()
+	userID := c.Sender().ID
+
+	// 1. Сохраняем стол
+	if err := h.bookingService.SetBookingTable(ctx, userID, table); err != nil {
 		return c.Send("Ошибка сохранения стола.")
 	}
 
-	// Удаляем сообщение с клавиатурой открытия WebApp, чтобы очистить интерфейс
+	// 2. СРАЗУ сохраняем время (финализируем бронь)
+	booking, err := h.bookingService.CompleteBookingDraft(ctx, userID, timeSlot)
+	if err != nil {
+		if errors.Is(err, domain.ErrTimeSlotTaken) {
+			return c.Send("Этот слот уже занят! Начните бронирование заново.")
+		}
+		return c.Send("Сессия истекла или произошла ошибка. Начните заново.")
+	}
+
+	// Удаляем сообщение с кнопкой Web App
 	_ = h.bot.Delete(c.Message())
 
-	// Отправляем заглушку, чтобы скрыть Reply-кнопку у пользователя
-	msg, _ := h.bot.Send(c.Sender(), "Загружаю...", &tele.ReplyMarkup{RemoveKeyboard: true})
-	_ = h.bot.Delete(msg)
+	// Уведомляем админа
+	if h.adminID != 0 && h.bot != nil {
+		user := c.Sender()
+		usernameStr := "@" + user.Username
+		if user.Username == "" {
+			usernameStr = "без username"
+		}
+		notifyText := fmt.Sprintf(
+			" *НОВАЯ БРОНЬ В СИСТЕМЕ*\n"+
+				"━━━━━━━━━━━━━━━\n"+
+				" Гость: *%s* (%s)\n"+
+				" Зал: *%s* | *%s*\n"+
+				" Время: *%s*",
+			user.FirstName, usernameStr, booking.Zone, booking.Table, booking.TimeSlot,
+		)
+		go func(msg string) { _, _ = h.bot.Send(tele.ChatID(h.adminID), msg, tele.ModeMarkdown) }(notifyText)
+	}
 
-	text := fmt.Sprintf(" *Последний шаг: Выберите время*\n\nВыбран: `%s`", table)
-	return c.Send(text, BuildTimeMenu(), tele.ModeMarkdown)
+	// Подтверждаем пользователю
+	text := fmt.Sprintf(
+		" *Бронь успешно подтверждена!*\n"+
+			"━━━━━━━━━━━━━━━\n"+
+			" Зал: `%s` | Стол: `%s`\n"+
+			" Время: `%s`\n"+
+			" Статус: *Подтверждено*\n\n"+
+			"Ждем вас в гости!",
+		booking.Zone, booking.Table, booking.TimeSlot,
+	)
+
+	return c.Send(text, BuildMainMenu(), tele.ModeMarkdown)
 }
 
 func (h *Handlers) handleTimeSelect(c tele.Context) error {

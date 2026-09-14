@@ -1,7 +1,9 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -35,7 +37,6 @@ func Run(token string, adminID int64) {
 	// --- ЗАПУСК ВЕБ-СЕРВЕРА ---
 	go func() {
 		http.HandleFunc("/api/book", func(w http.ResponseWriter, r *http.Request) {
-			// ДОБАВЛЕНО ПОЛЕ Time В СТРУКТУРУ
 			var data struct {
 				Table  string `json:"table"`
 				Time   string `json:"time"`
@@ -47,21 +48,87 @@ func Run(token string, adminID int64) {
 				return
 			}
 
-			// ОБНОВЛЕН ЛОГ В ТЕРМИНАЛЕ
-			log.Printf("🔥 НОВАЯ БРОНЬ! Пользователь %d выбрал %s на %s\n", data.UserID, data.Table, data.Time)
+			ctx := context.Background()
+			// 0. СОЗДАЕМ ЧЕРНОВИК НА ЛЕТУ (так как WebApp открылся сразу)
+			if err := bookingService.StartBookingDraft(ctx, data.UserID, "Общий лаунж"); err != nil {
+				log.Printf("Ошибка создания черновика: %v", err)
+				http.Error(w, "Ошибка создания черновика", http.StatusInternalServerError)
+				return
+			}
 
-			// ОБНОВЛЕН ТЕКСТ СООБЩЕНИЯ (добавлено время)
+			// 1. СОХРАНЯЕМ СТОЛ В СЕРВИС
+			if err := bookingService.SetBookingTable(ctx, data.UserID, data.Table); err != nil {
+				log.Printf("Ошибка сохранения стола: %v", err)
+				http.Error(w, "Ошибка сохранения стола", http.StatusInternalServerError)
+				return
+			}
+
+			// 2. ФИНАЛИЗИРУЕМ БРОНЬ (сохраняем время)
+			booking, err := bookingService.CompleteBookingDraft(ctx, data.UserID, data.Time)
+			if err != nil {
+				log.Printf("Ошибка завершения брони: %v", err)
+				http.Error(w, "Ошибка завершения брони", http.StatusConflict)
+				return
+			}
+
+			log.Printf("🔥 НОВАЯ БРОНЬ! Пользователь %d выбрал %s на %s\n", data.UserID, booking.Table, booking.TimeSlot)
+
+			// 3. Отправляем красивое сообщение пользователю (и возвращаем главное меню)
 			user := &tele.User{ID: data.UserID}
-			msg := "✅ Спасибо! Вы успешно забронировали: " + data.Table + " на " + data.Time
+			text := fmt.Sprintf(
+				"✅ *Бронь успешно подтверждена!*\n"+
+					"━━━━━━━━━━━━━━━\n"+
+					" Зал: `%s` | Стол: `%s`\n"+
+					" Время: `%s`\n"+
+					" Статус: *Подтверждено*\n\n"+
+					"Ждем вас в гости!",
+				booking.Zone, booking.Table, booking.TimeSlot,
+			)
 
-			_, err := b.Send(user, msg)
+			// Отправляем текст и прикрепляем главное меню из пакета telegram
+			_, err = b.Send(user, text, telegram.BuildMainMenu(), tele.ModeMarkdown)
 			if err != nil {
 				log.Printf("Ошибка при отправке сообщения: %v", err)
 			}
 
+			// 4. Уведомляем админа
+			if adminID != 0 {
+				notifyText := fmt.Sprintf(
+					"🔔 *НОВАЯ БРОНЬ В СИСТЕМЕ*\n"+
+						"━━━━━━━━━━━━━━━\n"+
+						" Гость ID: `%d`\n"+
+						" Зал: *%s* | *%s*\n"+
+						" Время: *%s*",
+					data.UserID, booking.Zone, booking.Table, booking.TimeSlot,
+				)
+				_, _ = b.Send(&tele.User{ID: adminID}, notifyText, tele.ModeMarkdown)
+			}
+
 			w.WriteHeader(http.StatusOK)
 		})
+		// --- НОВЫЙ ЭНДПОИНТ ДЛЯ ПРОВЕРКИ ЗАНЯТОСТИ ---
+		http.HandleFunc("/api/availability", func(w http.ResponseWriter, r *http.Request) {
+			ctx := context.Background()
+			// Запрашиваем у сервиса все активные брони
+			bookings, err := bookingService.GetAllActiveBookings(ctx)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 
+			// Группируем время по столам
+			bookedMap := make(map[string][]string)
+			for _, b := range bookings {
+				if b.TimeSlot != "" {
+					bookedMap[b.Table] = append(bookedMap[b.Table], b.TimeSlot)
+				}
+			}
+
+			// Возвращаем JSON на фронтенд
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(bookedMap)
+		})
+		// ---------------------------------------------
 		// 1. Отдаем статические файлы (картинки) по пути /img/
 		http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./webapp/img"))))
 
