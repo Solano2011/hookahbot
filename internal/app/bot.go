@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"html/template"
 	"log"
 	"net/http"
 	"time"
@@ -61,8 +62,30 @@ func Run(token string, adminID int64) {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		fs := http.FileServer(http.Dir("./webapp"))
-		http.Handle("/", fs)
+		// 1. Отдаем статические файлы (картинки) по пути /img/
+		http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./webapp/img"))))
+
+		// 2. Обрабатываем главную страницу через шаблонизатор
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			// Защита от лишних запросов
+			if r.URL.Path != "/" {
+				http.NotFound(w, r)
+				return
+			}
+
+			// Парсим все шаблоны при каждом запросе страницы.
+			// Это позволяет изменять HTML-файлы без перезапуска Go-сервера.
+			tmpl, err := template.ParseGlob("webapp/templates/*.html")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Рендерим главный шаблон (base.html)
+			if err := tmpl.ExecuteTemplate(w, "base.html", nil); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		})
 
 		log.Println("Локальный сервер Web App запущен на http://localhost:8080")
 		if err := http.ListenAndServe(":8080", nil); err != nil {

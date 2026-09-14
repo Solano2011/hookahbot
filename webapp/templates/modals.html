@@ -1,0 +1,145 @@
+{{define "modals"}}
+<!-- МОДАЛЬНОЕ ОКНО ДЛЯ КАЛЬЯНОВ -->
+<div id="hookahs-modal" class="modal-overlay">
+    <div class="modal-header">
+        <div class="back-btn" onclick="closeHookahs()">‹</div>
+        <div class="modal-title">Кальяны</div>
+    </div>
+    <div class="snack-list">
+        <div class="snack-card">
+            <img src="img/hookah1.jpg" alt="Легкий кальян" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Легкий (Чизкейк)</div>
+                <div class="snack-desc">Нежный и сладкий аромат свежего сливочного десерта. Идеально для мягкого расслабления. (Табак: Virginia).</div>
+                <div class="snack-price">1200 ₽</div>
+            </div>
+        </div>
+        <div class="snack-card">
+            <img src="img/hookah2.jpg" alt="Средний кальян" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Средний (Цитрус)</div>
+                <div class="snack-desc">Сбалансированный и освежающий цитрусовый микс с легкой кислинкой. Приятная средняя крепость. (Табак: Burley blend).</div>
+                <div class="snack-price">1400 ₽</div>
+            </div>
+        </div>
+        <div class="snack-card">
+            <img src="img/hookah3.jpg" alt="Тяжелый кальян" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Тяжелый (Ягодный)</div>
+                <div class="snack-desc">Насыщенный и крепкий микс из диких ягод на основе темного табачного листа. Для ценителей сильных ощущений. (Табак: Dark Leaf).</div>
+                <div class="snack-price">1600 ₽</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО ДЛЯ ЗАКУСОК -->
+<div id="snacks-modal" class="modal-overlay">
+    <div class="modal-header">
+        <div class="back-btn" onclick="closeSnacks()">‹</div>
+        <div class="modal-title">Закуски</div>
+    </div>
+    <div class="snack-list">
+        <div class="snack-card">
+            <img src="img/chicken.jpg" alt="Сэндвич с курицей" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Сэндвич с курицей</div>
+                <div class="snack-desc">Запеченная куриная грудка, хрустящий бекон, сыр чеддер, томаты, маринованные корнишоны, салат и укроп на зерновом хлебе.</div>
+                <div class="snack-price">650 ₽</div>
+            </div>
+        </div>
+        <div class="snack-card">
+            <img src="img/burger.jpg" alt="Бургер" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Бургер классический с беконом</div>
+                <div class="snack-desc">Сочная говяжья котлета, хрустящий бекон, расплавленный сыр чеддер, свежий салат, томаты, маринованные огурцы на пышной булочке бриошь.</div>
+                <div class="snack-price">820 ₽</div>
+            </div>
+        </div>
+        <div class="snack-card">
+            <img src="img/salmon.jpg" alt="Сэндвич с лососем" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Сэндвич с лососем</div>
+                <div class="snack-desc">Нежный копченый лосось, авокадо, сливочный сыр, красный лук, много каперсов и свежий укроп на ржаном хлебе.</div>
+                <div class="snack-price">720 ₽</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО ДЛЯ ЛИМОНАДОВ -->
+<div id="lemonades-modal" class="modal-overlay">
+    <div class="modal-header">
+        <div class="back-btn" onclick="closeLemonades()">‹</div>
+        <div class="modal-title">Лимонады</div>
+    </div>
+    <div class="snack-list">
+        <div class="snack-card">
+            <img src="img/lem1.jpg" alt="Классический цитрусовый" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Классический цитрусовый</div>
+                <div class="snack-desc">Освежающий микс из свежевыжатого лимона, лайма, свежей мяты, тростникового сиропа и льда.</div>
+                <div class="snack-price">350 ₽</div>
+            </div>
+        </div>
+        <div class="snack-card">
+            <img src="img/lem2.jpg" alt="Малина-Грейпфрут" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Малина-Грейпфрут</div>
+                <div class="snack-desc">Яркое сочетание сладкого малинового пюре и легкой терпкости свежего сока грейпфрута.</div>
+                <div class="snack-price">400 ₽</div>
+            </div>
+        </div>
+        <div class="snack-card">
+            <img src="img/lem3.jpg" alt="Манго-Маракуйя" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Манго-Маракуйя</div>
+                <div class="snack-desc">Тропический взрыв вкуса: сладкое пюре манго, сок маракуйи, содовая и много колотого льда.</div>
+                <div class="snack-price">450 ₽</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО ДЛЯ ГОРЯЧИХ НАПИТКОВ -->
+<div id="drinks-modal" class="modal-overlay">
+    <div class="modal-header">
+        <div class="back-btn" onclick="closeDrinks()">‹</div>
+        <div class="modal-title">Горячие напитки</div>
+    </div>
+    <div class="snack-list">
+        <div class="snack-card">
+            <img src="img/tea1.jpg" alt="Чёрный чай" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Ассам с чабрецом</div>
+                <div class="snack-desc">Насыщенный индийский черный чай с ароматным горным чабрецом (чайник 800 мл).</div>
+                <div class="snack-price">550 ₽</div>
+            </div>
+        </div>
+        <div class="snack-card">
+            <img src="img/tea2.jpg" alt="Зелёный чай" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Молочный Улун</div>
+                <div class="snack-desc">Элитный тайваньский чай со сливочно-карамельным ароматом (чайник 800 мл).</div>
+                <div class="snack-price">600 ₽</div>
+            </div>
+        </div>
+        <div class="snack-card">
+            <img src="img/coffee1.jpg" alt="Капучино" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Капучино</div>
+                <div class="snack-desc">Классический кофейный напиток на основе эспрессо с густой молочной пенкой.</div>
+                <div class="snack-price">350 ₽</div>
+            </div>
+        </div>
+        <div class="snack-card">
+            <img src="img/coffee2.jpg" alt="Американо" class="snack-img">
+            <div class="snack-info">
+                <div class="snack-title">Американо</div>
+                <div class="snack-desc">Эспрессо с добавлением горячей воды. Для ценителей чистого кофейного вкуса.</div>
+                <div class="snack-price">300 ₽</div>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}

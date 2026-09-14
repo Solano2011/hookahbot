@@ -1,0 +1,32 @@
+{{define "map"}}
+<div id="section-map" class="section active">
+    <h2>План зала 💨</h2>
+    <div class="floor-plan">
+        <div class="room-element wc">WC</div>
+        <div class="room-element entrance">ВХОД</div>
+        <div class="room-element bar-vertical"></div>
+        <div class="room-element bar-horizontal"></div>
+        <div class="bar-text">БАРНАЯ СТОЙКА</div>
+        <div class="window-line w1"></div><div class="window-line w2"></div><div class="window-line w3"></div>
+
+        <div class="table-group" id="t1" onclick="selectTable('Стол 1', this)"><div class="chair"></div><div class="table-core">1</div><div class="chair"></div></div>
+        <div class="table-group" id="t2" onclick="selectTable('Стол 2', this)"><div class="chair"></div><div class="table-core">2</div><div class="chair"></div></div>
+        <div class="table-group" id="t3" onclick="selectTable('Стол 3', this)"><div class="chair"></div><div class="table-core">3</div><div class="chair"></div></div>
+        <div class="table-group window-table" id="t4" onclick="selectTable('Стол 4 (окно)', this)"><div class="chair"></div><div class="table-core">4</div><div class="chair"></div></div>
+        <div class="table-group window-table" id="t5" onclick="selectTable('Стол 5 (окно)', this)"><div class="chair"></div><div class="table-core">5</div><div class="chair"></div></div>
+        <div class="table-group window-table" id="t6" onclick="selectTable('Стол 6 (окно)', this)"><div class="chair"></div><div class="table-core">6</div><div class="chair"></div></div>
+    </div>
+
+    <div class="time-picker" id="timePicker">
+        <h3 id="timeTitle">Выберите время</h3>
+        <div class="time-chips">
+            <div class="time-chip" onclick="selectTime('18:00', this)">18:00</div>
+            <div class="time-chip" onclick="selectTime('19:00', this)">19:00</div>
+            <div class="time-chip" onclick="selectTime('20:00', this)">20:00</div>
+            <div class="time-chip" onclick="selectTime('21:00', this)">21:00</div>
+            <div class="time-chip" onclick="selectTime('22:00', this)">22:00</div>
+            <div class="time-chip" onclick="selectTime('23:00', this)">23:00</div>
+        </div>
+    </div>
+</div>
+{{end}}

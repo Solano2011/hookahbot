@@ -5,41 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Выбор столика и Меню</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <link rel="preload" as="image" href="img/chicken.jpg">
+    <link rel="preload" as="image" href="img/burger.jpg">
+    <link rel="preload" as="image" href="img/salmon.jpg">
+    <link rel="preload" as="image" href="img/lem1.jpg">
+    <link rel="preload" as="image" href="img/lem2.jpg">
+    <link rel="preload" as="image" href="img/lem3.jpg">
+    <link rel="preload" as="image" href="img/tea1.jpg">
+    <link rel="preload" as="image" href="img/tea2.jpg">
+    <link rel="preload" as="image" href="img/coffee1.jpg">
+    <link rel="preload" as="image" href="img/coffee2.jpg">
+    <link rel="preload" as="image" href="img/hookah1.jpg">
+    <link rel="preload" as="image" href="img/hookah2.jpg">
+    <link rel="preload" as="image" href="img/hookah3.jpg">
+
     <style>
-        body {
-            background-color: #1c1c1e;
-            color: white;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-            margin: 0;
-            padding: 15px;
-            padding-bottom: 100px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            user-select: none;
-        }
+        body { background-color: #1c1c1e; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; padding: 15px; padding-bottom: 100px; display: flex; flex-direction: column; align-items: center; user-select: none; }
         h2 { margin-top: 5px; margin-bottom: 20px; font-weight: 600; text-align: center; }
-        
-        /* --- НАВИГАЦИЯ --- */
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: #2c2c2e; border-top: 1px solid #3a3a3c; display: flex; justify-content: space-around; padding: 10px 0; z-index: 100; }
         .nav-item { display: flex; flex-direction: column; align-items: center; color: #888; font-size: 12px; font-weight: 500; cursor: pointer; }
         .nav-item.active { color: #007aff; }
         .nav-icon { font-size: 24px; margin-bottom: 4px; }
-
-        /* --- СЕКЦИИ --- */
         .section { width: 100%; max-width: 360px; display: none; }
         .section.active { display: block; }
-
-        /* --- СЕКЦИЯ: ПЛАН ЗАЛА (остается без изменений) --- */
         .floor-plan { position: relative; width: 100%; height: 480px; background-color: #242426; border-radius: 15px; border: 2px solid #3a3a3c; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .room-element { position: absolute; border: 2px solid #555; display: flex; justify-content: center; align-items: center; font-size: 11px; font-weight: bold; color: #888; background-color: #2c2c2e; }
         .wc { top: 15px; left: 15px; width: 40px; height: 30px; }
         .entrance { bottom: 15px; left: 15px; width: 40px; height: 30px; border-color: #4CAF50; color: #4CAF50;}
-        
         .bar-vertical { bottom: 143px; left: 15px; width: 25px; height: 75px; border-bottom: none; z-index: 2; box-sizing: border-box; }
         .bar-horizontal { bottom: 120px; left: 15px; width: 70px; height: 25px; box-sizing: border-box; z-index: 1; }
         .bar-text { position: absolute; bottom: 95px; left: 15px; font-size: 10px; color: #e5b582; font-weight: bold; width: 70px; text-align: center; }
-        
         .window-line { position: absolute; bottom: 0; height: 6px; background-color: #5ac8fa; border-top-left-radius: 4px; border-top-right-radius: 4px; box-shadow: 0 0 8px #5ac8fa; }
         .w1 { left: 90px; width: 60px; } .w2 { left: 180px; width: 60px; } .w3 { left: 270px; width: 60px; }
         .table-group { position: absolute; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.3s ease; width: 65px; height: 45px; }
@@ -52,7 +48,6 @@
         #t4 { bottom: 20px; left: 88px; } #t5 { bottom: 20px; left: 178px; } #t6 { bottom: 20px; left: 268px; }
         .table-group.selected { transform: scale(1.15); z-index: 10; }
         .table-group.selected .table-core { background-color: #007aff; border-color: #007aff; box-shadow: 0 0 15px rgba(0, 122, 255, 0.8); color: white; }
-
         .time-picker { display: none; margin-top: 20px; width: 100%; animation: fadeIn 0.3s ease; }
         .time-picker.active { display: block; }
         .time-picker h3 { margin: 0 0 12px 0; font-size: 16px; text-align: center; color: #e5b582; }
@@ -60,131 +55,33 @@
         .time-chip { padding: 10px 16px; background-color: #2c2c2e; border: 2px solid #3a3a3c; border-radius: 8px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
         .time-chip.selected { background-color: #007aff; border-color: #007aff; box-shadow: 0 0 10px rgba(0, 122, 255, 0.5); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* --- СЕКЦИЯ: МЕНЮ --- */
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .menu-item { background-color: #2c2c2e; border-radius: 12px; padding: 20px 15px; display: flex; flex-direction: column; align-items: center; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; }
         .menu-item:active { transform: scale(0.97); }
         .menu-icon { font-size: 40px; margin-bottom: 12px; }
         .menu-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; }
         .menu-price { font-size: 15px; color: #e5b582; font-weight: bold; margin-bottom: 0; }
-
-        /* --- МОДАЛЬНОЕ ОКНО ДЛЯ ЗАКУСОК --- */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #1c1c1e; z-index: 200; display: none;
-            flex-direction: column; overflow-y: auto; padding-bottom: 30px;
-            animation: slideIn 0.3s forwards;
-        }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #1c1c1e; z-index: 200; display: none; flex-direction: column; overflow-y: auto; padding-bottom: 30px; animation: slideIn 0.3s forwards; }
         .modal-overlay.active { display: flex; }
-        .modal-header {
-            display: flex; align-items: center; padding: 15px 20px;
-            background-color: #2c2c2e; position: sticky; top: 0; z-index: 201;
-            border-bottom: 1px solid #3a3a3c;
-        }
+        .modal-header { display: flex; align-items: center; padding: 15px 20px; background-color: #2c2c2e; position: sticky; top: 0; z-index: 201; border-bottom: 1px solid #3a3a3c; }
         .back-btn { font-size: 24px; margin-right: 15px; cursor: pointer; color: #007aff; line-height: 1; }
         .modal-title { font-size: 18px; font-weight: bold; }
-        
         .snack-list { padding: 15px; display: flex; flex-direction: column; gap: 20px; }
         .snack-card { background-color: #2c2c2e; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
-        .snack-img { width: 100%; height: 220px; object-fit: cover; display: block; }
+        .snack-img { width: 100%; height: 220px; object-fit: cover; object-position: left center; display: block; }
         .snack-info { padding: 15px; }
         .snack-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; line-height: 1.2; }
         .snack-desc { font-size: 14px; color: #b0b0b0; margin-bottom: 15px; line-height: 1.4; }
         .snack-price { font-size: 18px; color: #e5b582; font-weight: bold; }
-
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
     </style>
 </head>
 <body>
     
-    <!-- Вкладка: ПЛАН ЗАЛА -->
-    <div id="section-map" class="section active">
-        <h2>План зала 💨</h2>
-        <div class="floor-plan">
-            <div class="room-element wc">WC</div>
-            <div class="room-element entrance">ВХОД</div>
-            <div class="room-element bar-vertical"></div>
-            <div class="room-element bar-horizontal"></div>
-            <div class="bar-text">БАРНАЯ СТОЙКА</div>
-            <div class="window-line w1"></div><div class="window-line w2"></div><div class="window-line w3"></div>
+    {{template "map" .}}
+    {{template "menu" .}}
+    {{template "modals" .}}
 
-            <div class="table-group" id="t1" onclick="selectTable('Стол 1', this)"><div class="chair"></div><div class="table-core">1</div><div class="chair"></div></div>
-            <div class="table-group" id="t2" onclick="selectTable('Стол 2', this)"><div class="chair"></div><div class="table-core">2</div><div class="chair"></div></div>
-            <div class="table-group" id="t3" onclick="selectTable('Стол 3', this)"><div class="chair"></div><div class="table-core">3</div><div class="chair"></div></div>
-            <div class="table-group window-table" id="t4" onclick="selectTable('Стол 4 (окно)', this)"><div class="chair"></div><div class="table-core">4</div><div class="chair"></div></div>
-            <div class="table-group window-table" id="t5" onclick="selectTable('Стол 5 (окно)', this)"><div class="chair"></div><div class="table-core">5</div><div class="chair"></div></div>
-            <div class="table-group window-table" id="t6" onclick="selectTable('Стол 6 (окно)', this)"><div class="chair"></div><div class="table-core">6</div><div class="chair"></div></div>
-        </div>
-
-        <div class="time-picker" id="timePicker">
-            <h3 id="timeTitle">Выберите время</h3>
-            <div class="time-chips">
-                <div class="time-chip" onclick="selectTime('18:00', this)">18:00</div>
-                <div class="time-chip" onclick="selectTime('19:00', this)">19:00</div>
-                <div class="time-chip" onclick="selectTime('20:00', this)">20:00</div>
-                <div class="time-chip" onclick="selectTime('21:00', this)">21:00</div>
-                <div class="time-chip" onclick="selectTime('22:00', this)">22:00</div>
-                <div class="time-chip" onclick="selectTime('23:00', this)">23:00</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Вкладка: МЕНЮ -->
-    <div id="section-menu" class="section">
-        <h2>Меню 📋</h2>
-        <div class="menu-grid">
-            <div class="menu-item"><div class="menu-icon">💨</div><div class="menu-title">Кальян Классика</div><div class="menu-price">1200 ₽</div></div>
-            <div class="menu-item"><div class="menu-icon">🍍</div><div class="menu-title">Кальян на фрукте</div><div class="menu-price">1800 ₽</div></div>
-            
-            <!-- НОВАЯ КНОПКА ЗАКУСОК -->
-            <div class="menu-item" onclick="openSnacks()"><div class="menu-icon">🍔</div><div class="menu-title">Закуски</div><div class="menu-price">от 650 ₽</div></div>
-            
-            <div class="menu-item"><div class="menu-icon">🥤</div><div class="menu-title">Лимонад</div><div class="menu-price">350 ₽</div></div>
-        </div>
-    </div>
-
-    <!-- ЭКРАН ЗАКУСОК (Проваливаемся внутрь) -->
-    <div id="snacks-modal" class="modal-overlay">
-        <div class="modal-header">
-            <div class="back-btn" onclick="closeSnacks()">‹</div>
-            <div class="modal-title">Закуски</div>
-        </div>
-        
-        <div class="snack-list">
-            <!-- Карточка 1 -->
-            <div class="snack-card">
-                <img src="img/chicken.jpg" alt="Сэндвич с курицей" class="snack-img">
-                <div class="snack-info">
-                    <div class="snack-title">Сэндвич с курицей</div>
-                    <div class="snack-desc">Запеченная куриная грудка, хрустящий бекон, сыр чеддер, томаты, маринованные корнишоны, салат и укроп на зерновом хлебе.</div>
-                    <div class="snack-price">650 ₽</div>
-                </div>
-            </div>
-            
-            <!-- Карточка 2 -->
-            <div class="snack-card">
-                <img src="img/burger.jpg" alt="Бургер" class="snack-img">
-                <div class="snack-info">
-                    <div class="snack-title">Бургер классический с беконом</div>
-                    <div class="snack-desc">Сочная говяжья котлета, хрустящий бекон, расплавленный сыр чеддер, свежий салат, томаты, маринованные огурцы на пышной булочке бриошь.</div>
-                    <div class="snack-price">820 ₽</div>
-                </div>
-            </div>
-            
-            <!-- Карточка 3 -->
-            <div class="snack-card">
-                <img src="img/salmon.jpg" alt="Сэндвич с лососем" class="snack-img">
-                <div class="snack-info">
-                    <div class="snack-title">Сэндвич с лососем</div>
-                    <div class="snack-desc">Нежный копченый лосось, авокадо, сливочный сыр, красный лук, много каперсов и свежий укроп на ржаном хлебе.</div>
-                    <div class="snack-price">720 ₽</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- НИЖНЯЯ НАВИГАЦИЯ -->
     <div class="bottom-nav">
         <div class="nav-item active" id="tab-map" onclick="switchTab('map')"><div class="nav-icon">🗺️</div><span>Зал</span></div>
         <div class="nav-item" id="tab-menu" onclick="switchTab('menu')"><div class="nav-icon">🧾</div><span>Меню</span></div>
@@ -209,17 +106,21 @@
             document.getElementById('tab-menu').classList.remove('active');
             document.getElementById('section-' + tab).classList.add('active');
             document.getElementById('tab-' + tab).classList.add('active');
-            closeSnacks(); // Закрываем закуски, если переключились на другую вкладку
+            
+            closeSnacks(); 
+            closeLemonades();
+            closeDrinks();
+            closeHookahs();
         }
 
-        // Открытие и закрытие экрана закусок
-        function openSnacks() {
-            document.getElementById('snacks-modal').classList.add('active');
-        }
-
-        function closeSnacks() {
-            document.getElementById('snacks-modal').classList.remove('active');
-        }
+        function openHookahs() { document.getElementById('hookahs-modal').classList.add('active'); }
+        function closeHookahs() { document.getElementById('hookahs-modal').classList.remove('active'); }
+        function openSnacks() { document.getElementById('snacks-modal').classList.add('active'); }
+        function closeSnacks() { document.getElementById('snacks-modal').classList.remove('active'); }
+        function openLemonades() { document.getElementById('lemonades-modal').classList.add('active'); }
+        function closeLemonades() { document.getElementById('lemonades-modal').classList.remove('active'); }
+        function openDrinks() { document.getElementById('drinks-modal').classList.add('active'); }
+        function closeDrinks() { document.getElementById('drinks-modal').classList.remove('active'); }
 
         function selectTable(name, element) {
             selectedTableName = name;
