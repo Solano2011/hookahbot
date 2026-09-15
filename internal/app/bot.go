@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"hookah-bot/internal/delivery/telegram"
-	"hookah-bot/internal/repository/memory"
+	"hookah-bot/internal/repository/postgres" // Добавили импорт базы данных
 	"hookah-bot/internal/service"
 
 	tele "gopkg.in/telebot.v3"
 )
 
-func Run(token string, adminID int64) {
+// Добавили db *postgres.DB третьим параметром
+func Run(token string, adminID int64, db *postgres.DB) {
 	pref := tele.Settings{
 		Token:  token,
 		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
@@ -27,7 +28,12 @@ func Run(token string, adminID int64) {
 		log.Fatalf("Ошибка создания бота: %v", err)
 	}
 
-	repo := memory.NewBookingRepo()
+	// ---------------------------------------------------------
+	// В БУДУЩЕМ мы поменяем memory.NewBookingRepo() на базу данных:
+	// repo := postgres.NewBookingRepo(db)
+	// ---------------------------------------------------------
+	repo := postgres.NewBookingRepo(db)
+
 	bookingService := service.NewBookingService(repo)
 	handlers := telegram.NewHandlers(bookingService, adminID)
 	handlers.InitRoutes(b)
@@ -106,7 +112,8 @@ func Run(token string, adminID int64) {
 
 			w.WriteHeader(http.StatusOK)
 		})
-		// --- НОВЫЙ ЭНДПОИНТ ДЛЯ ПРОВЕРКИ ЗАНЯТОСТИ ---
+
+		// --- ЭНДПОИНТ ДЛЯ ПРОВЕРКИ ЗАНЯТОСТИ ---
 		http.HandleFunc("/api/availability", func(w http.ResponseWriter, r *http.Request) {
 			ctx := context.Background()
 			// Запрашиваем у сервиса все активные брони
@@ -129,6 +136,7 @@ func Run(token string, adminID int64) {
 			json.NewEncoder(w).Encode(bookedMap)
 		})
 		// ---------------------------------------------
+
 		// 1. Отдаем статические файлы (картинки) по пути /img/
 		http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./webapp/img"))))
 
@@ -140,15 +148,12 @@ func Run(token string, adminID int64) {
 				return
 			}
 
-			// Парсим все шаблоны при каждом запросе страницы.
-			// Это позволяет изменять HTML-файлы без перезапуска Go-сервера.
 			tmpl, err := template.ParseGlob("webapp/templates/*.html")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			// Рендерим главный шаблон (base.html)
 			if err := tmpl.ExecuteTemplate(w, "base.html", nil); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}

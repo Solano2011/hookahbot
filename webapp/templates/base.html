@@ -6,6 +6,9 @@
     <title>Выбор столика и Меню</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
+    <!-- Подключаем премиальный шрифт для меню -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
     <link rel="preload" as="image" href="img/chicken.jpg">
     <link rel="preload" as="image" href="img/burger.jpg">
     <link rel="preload" as="image" href="img/salmon.jpg">
@@ -29,6 +32,8 @@
         .nav-icon { font-size: 24px; margin-bottom: 4px; }
         .section { width: 100%; max-width: 360px; display: none; }
         .section.active { display: block; }
+        
+        /* КАРТА ЗАЛА */
         .floor-plan { position: relative; width: 100%; height: 480px; background-color: #242426; border-radius: 15px; border: 2px solid #3a3a3c; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .room-element { position: absolute; border: 2px solid #555; display: flex; justify-content: center; align-items: center; font-size: 11px; font-weight: bold; color: #888; background-color: #2c2c2e; }
         .wc { top: 15px; left: 15px; width: 40px; height: 30px; }
@@ -48,6 +53,8 @@
         #t4 { bottom: 20px; left: 88px; } #t5 { bottom: 20px; left: 178px; } #t6 { bottom: 20px; left: 268px; }
         .table-group.selected { transform: scale(1.15); z-index: 10; }
         .table-group.selected .table-core { background-color: #007aff; border-color: #007aff; box-shadow: 0 0 15px rgba(0, 122, 255, 0.8); color: white; }
+        
+        /* ВЫБОР ВРЕМЕНИ */
         .time-picker { display: none; margin-top: 20px; width: 100%; animation: fadeIn 0.3s ease; }
         .time-picker.active { display: block; }
         .time-picker h3 { margin: 0 0 12px 0; font-size: 16px; text-align: center; color: #e5b582; }
@@ -55,49 +62,73 @@
         .time-chip { padding: 10px 16px; background-color: #2c2c2e; border: 2px solid #3a3a3c; border-radius: 8px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
         .time-chip.selected { background-color: #007aff; border-color: #007aff; box-shadow: 0 0 10px rgba(0, 122, 255, 0.5); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-       /* --- НОВЫЙ ДИЗАЙН МЕНЮ --- */
-.menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        
+        /* ФОРМА КОНТАКТОВ */
+        .input-field { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #444; background: #2c2c2e; color: white; box-sizing: border-box; font-size: 16px; }
+        .input-field::placeholder { color: #888; }
+        .input-field:focus { outline: none; border-color: #d4b886; }
 
-.menu-card {
-    background: linear-gradient(145deg, #2b2b36 0%, #1f1f27 100%);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.3);
-    border-radius: 20px;
-    padding: 24px 12px;
-    text-align: center;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
+        /* --- ПРЕМИАЛЬНЫЙ ДИЗАЙН МЕНЮ --- */
+        #section-menu h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            color: #d4b886; 
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 25px;
+        }
 
-.menu-card:active {
-    transform: scale(0.94);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-}
+        .menu-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 16px; 
+            padding: 0 10px;
+        }
 
-.menu-icon {
-    font-size: 44px; 
-    margin-bottom: 12px;
-    filter: drop-shadow(0px 8px 8px rgba(0, 0, 0, 0.4));
-}
+        .menu-card {
+            background: linear-gradient(135deg, #2a2a2f 0%, #1c1c1f 100%);
+            border: 1px solid rgba(212, 184, 134, 0.3);
+            border-radius: 12px;
+            padding: 25px 15px;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
 
-.menu-title {
-    font-weight: 700;
-    font-size: 16px;
-    color: #ffffff;
-    margin-bottom: 12px;
-}
+        .menu-card:active {
+            transform: scale(0.96);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+        }
 
-.menu-price {
-    display: inline-block;
-    background: rgba(230, 163, 100, 0.15); 
-    color: #e6a364; 
-    padding: 6px 14px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
+        .menu-icon {
+            font-size: 55px; 
+            margin-bottom: 15px;
+            filter: drop-shadow(0px 10px 15px rgba(0, 0, 0, 0.5));
+            display: block;
+        }
+
+        .menu-title {
+            font-family: 'Playfair Display', serif;
+            font-weight: 600;
+            font-size: 18px;
+            color: #ffffff;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .menu-price {
+            font-family: 'Playfair Display', serif;
+            display: inline-block;
+            background: transparent;
+            color: #d4b886; 
+            font-size: 15px;
+            font-weight: 400;
+            text-transform: lowercase; 
+            letter-spacing: 0.5px;
+        }
+
+        /* МОДАЛЬНЫЕ ОКНА */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #1c1c1e; z-index: 200; display: none; flex-direction: column; overflow-y: auto; padding-bottom: 30px; animation: slideIn 0.3s forwards; }
         .modal-overlay.active { display: flex; }
         .modal-header { display: flex; align-items: center; padding: 15px 20px; background-color: #2c2c2e; position: sticky; top: 0; z-index: 201; border-bottom: 1px solid #3a3a3c; }
@@ -148,6 +179,9 @@
             closeLemonades();
             closeDrinks();
             closeHookahs();
+            
+            // Прячем кнопку Telegram при смене вкладок
+            tg.MainButton.hide();
         }
 
         function openHookahs() { document.getElementById('hookahs-modal').classList.add('active'); }
@@ -159,88 +193,116 @@
         function openDrinks() { document.getElementById('drinks-modal').classList.add('active'); }
         function closeDrinks() { document.getElementById('drinks-modal').classList.remove('active'); }
 
-       // Твоя переменная для стола может называться selectedTableName или currentTable
-// Используй ту, которая была у тебя изначально!
+        function selectTable(tableName, element) {
+            // 1. Сохраняем название стола и выделяем кнопку
+            selectedTableName = tableName; 
+            document.querySelectorAll('.table-chip, .table-group').forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
 
-function selectTable(tableName, element) {
-    // 1. Сохраняем название стола и выделяем кнопку (твой старый код)
-    selectedTableName = tableName; 
-    document.querySelectorAll('.table-chip').forEach(c => c.classList.remove('selected'));
-    element.classList.add('selected');
+            // Скрываем форму и кнопку при смене стола
+            let contactForm = document.getElementById('contactForm');
+            if (contactForm) contactForm.style.display = 'none';
+            
+            tg.MainButton.hide();
+            selectedTime = "";
 
-    // 2. Стучимся на сервер за свежим расписанием ИМЕННО СЕЙЧАС
-    fetch('/api/availability')
-        .then(response => response.json())
-        .then(data => {
-            // Получаем занятые часы конкретно для этого стола
-            let takenTimes = data[tableName] || [];
-            
-            // 3. Проходимся по кнопкам времени
-            document.querySelectorAll('.time-chip').forEach(chip => {
-                let time = chip.innerText.trim(); // trim() убирает случайные пробелы
-                
-                if (takenTimes.includes(time)) {
-                    // Красим в красный и блокируем
-                    chip.style.backgroundColor = '#4a1515';
-                    chip.style.color = '#ff6b6b';
-                    chip.style.pointerEvents = 'none';
-                    chip.classList.remove('selected');
-                    chip.style.opacity = '0.5';
-                } else {
-                    // Сбрасываем стили для свободных слотов
-                    chip.style.backgroundColor = ''; 
-                    chip.style.color = '';
-                    chip.style.pointerEvents = 'auto'; 
-                    chip.style.opacity = '1';
-                }
-            });
-            
-            // 4. Показываем блок со временем
-            document.getElementById('timePicker').style.display = 'block';
-        })
-        .catch(err => {
-            tg.showAlert("Не удалось проверить занятость столов");
-        });
-}
+            // 2. Стучимся на сервер за свежим расписанием
+            fetch('/api/availability')
+                .then(response => response.json())
+                .then(data => {
+                    let takenTimes = data[tableName] || [];
+                    
+                    // 3. Проходимся по кнопкам времени
+                    document.querySelectorAll('.time-chip').forEach(chip => {
+                        let time = chip.innerText.trim(); 
+                        
+                        if (takenTimes.includes(time)) {
+                            // Красим в красный и блокируем
+                            chip.style.backgroundColor = '#4a1515';
+                            chip.style.color = '#ff6b6b';
+                            chip.style.pointerEvents = 'none';
+                            chip.classList.remove('selected');
+                            chip.style.opacity = '0.5';
+                        } else {
+                            // Сбрасываем стили для свободных слотов
+                            chip.style.backgroundColor = ''; 
+                            chip.style.color = '';
+                            chip.style.pointerEvents = 'auto'; 
+                            chip.style.opacity = '1';
+                        }
+                    });
+                    
+                    // 4. Показываем блок со временем
+                    document.getElementById('timePicker').style.display = 'block';
+                })
+                .catch(err => {
+                    tg.showAlert("Не удалось проверить занятость столов");
+                });
+        }
 
         function selectTime(time, element) {
             selectedTime = time;
             document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
             element.classList.add('selected');
+            
+            // Показываем форму для ввода контактов
+            let contactForm = document.getElementById('contactForm');
+            if (contactForm) contactForm.style.display = 'block';
+            
+            // Показываем нативную кнопку Telegram (в золотом стиле!)
             tg.MainButton.text = ("ЗАБРОНИРОВАТЬ НА " + time).toUpperCase();
-            tg.MainButton.color = "#007aff"; 
+            tg.MainButton.color = "#d4b886"; // Золотистый цвет кнопки
+            tg.MainButton.textColor = "#1c1c1e"; // Темный цвет текста на кнопке
             tg.MainButton.show();
+            
+            // Скроллим вниз к полям ввода
+            setTimeout(() => {
+                if (contactForm) contactForm.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
         }
 
         tg.onEvent('mainButtonClicked', function(){
-    let userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0;
-    
-    // ПОКАЖЕМ АЛЕРТ ПЕРЕД ОТПРАВКОЙ!
-   
-    
-    tg.MainButton.showProgress();
-    let payload = { 
-        table: selectedTableName, 
-        time: selectedTime, 
-        userId: userId 
-    };
-    
-    fetch('/api/book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }).then(response => {
-        tg.MainButton.hideProgress();
-        if (response.ok) {
-            tg.close();
-        } else {
-            tg.showAlert("Ошибка бронирования на сервере");
-        }
-    }).catch(() => {
-        tg.MainButton.hideProgress();
-        tg.showAlert("Ошибка соединения с сервером");
-    });
-});
+            const nameEl = document.getElementById('userName');
+            const phoneEl = document.getElementById('userPhone');
+            
+            const name = nameEl ? nameEl.value.trim() : "";
+            const phone = phoneEl ? phoneEl.value.trim() : "";
+
+            if (!name || !phone) {
+                tg.showAlert("Пожалуйста, заполните имя и телефон!");
+                return;
+            }
+
+            let userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0;
+            let username = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.username : "";
+            
+            tg.MainButton.showProgress();
+            
+            let payload = { 
+                table: selectedTableName, 
+                time: selectedTime, 
+                userId: userId,
+                username: username,
+                name: name,
+                phone: phone
+            };
+            
+            fetch('/api/book', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(response => {
+                tg.MainButton.hideProgress();
+                if (response.ok) {
+                    tg.close();
+                } else {
+                    tg.showAlert("Ошибка бронирования на сервере");
+                }
+            }).catch(() => {
+                tg.MainButton.hideProgress();
+                tg.showAlert("Ошибка соединения с сервером");
+            });
+        });
     </script>
 </body>
 </html>
