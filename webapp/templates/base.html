@@ -51,8 +51,9 @@
         .window-table .table-core { width: 35px; height: 30px; }
         .window-table .chair { width: 10px; height: 25px; }
         #t4 { bottom: 20px; left: 88px; } #t5 { bottom: 20px; left: 178px; } #t6 { bottom: 20px; left: 268px; }
+        
         .table-group.selected { transform: scale(1.15); z-index: 10; }
-        .table-group.selected .table-core { background-color: #007aff; border-color: #007aff; box-shadow: 0 0 15px rgba(0, 122, 255, 0.8); color: white; }
+        .table-core.selected { background-color: #007aff !important; border-color: #007aff !important; box-shadow: 0 0 15px rgba(0, 122, 255, 0.8) !important; color: white !important; }
         
         /* ВЫБОР ВРЕМЕНИ */
         .time-picker { display: none; margin-top: 20px; width: 100%; animation: fadeIn 0.3s ease; }
@@ -180,7 +181,6 @@
             closeDrinks();
             closeHookahs();
             
-            // Прячем кнопку Telegram при смене вкладок
             tg.MainButton.hide();
         }
 
@@ -194,84 +194,78 @@
         function closeDrinks() { document.getElementById('drinks-modal').classList.remove('active'); }
 
         function selectTable(tableName, element) {
-    let contactForm = document.getElementById('contactForm');
-    let timePicker = document.getElementById('timePicker');
+            let contactForm = document.getElementById('contactForm');
+            let timePicker = document.getElementById('timePicker');
 
-    // Проверяем, нажат ли уже этот конкретный стол
-    let core = element.querySelector('.table-core');
-    let isAlreadySelected = element.classList.contains('selected') || (core && core.classList.contains('selected'));
+            let core = element.querySelector('.table-core');
+            let isAlreadySelected = element.classList.contains('selected') || (core && core.classList.contains('selected'));
 
-    // Принудительно гасим ВСЕ столы и все их внутренности на карте
-    document.querySelectorAll('.table-group').forEach(g => {
-        g.classList.remove('selected');
-        g.querySelectorAll('*').forEach(el => el.classList.remove('selected'));
-    });
+            // Жестко сбрасываем подсветку со ВСЕХ столов и ядер на странице
+            document.querySelectorAll('.table-group').forEach(g => g.classList.remove('selected'));
+            document.querySelectorAll('.table-core').forEach(c => c.classList.remove('selected'));
 
-    if (isAlreadySelected) {
-        // Если он уже был выбран — просто отменяем выбор
-        selectedTableName = "";
-        selectedTime = "";
-        if (timePicker) timePicker.style.display = 'none';
-        if (contactForm) contactForm.style.display = 'none';
-        tg.MainButton.hide();
-        return;
-    }
+            // Если кликнули повторно на тот же стол — отменяем выбор
+            if (isAlreadySelected) {
+                selectedTableName = "";
+                selectedTime = "";
+                if (timePicker) timePicker.style.display = 'none';
+                if (contactForm) contactForm.style.display = 'none';
+                tg.MainButton.hide();
+                return;
+            }
 
-    // Иначе подсвечиваем только то, на что нажали
-    element.classList.add('selected');
-    if (core) core.classList.add('selected');
-    
-    selectedTableName = tableName; 
-
-    if (contactForm) contactForm.style.display = 'none';
-    tg.MainButton.hide();
-    selectedTime = "";
-
-    // Запрашиваем занятость
-    fetch('/api/availability')
-        .then(response => response.json())
-        .then(data => {
-            let takenTimes = data[tableName] || [];
+            // Подсвечиваем только выбранный стол и его ядро
+            element.classList.add('selected');
+            if (core) core.classList.add('selected');
             
-            document.querySelectorAll('.time-chip').forEach(chip => {
-                let time = chip.innerText.trim(); 
-                if (takenTimes.includes(time)) {
-                    chip.style.backgroundColor = '#4a1515';
-                    chip.style.color = '#ff6b6b';
-                    chip.style.pointerEvents = 'none';
-                    chip.classList.remove('selected');
-                    chip.style.opacity = '0.5';
-                } else {
-                    chip.style.backgroundColor = ''; 
-                    chip.style.color = '';
-                    chip.style.pointerEvents = 'auto'; 
-                    chip.style.opacity = '1';
-                }
-            });
-            
-            if (timePicker) timePicker.style.display = 'block';
-        })
-        .catch(err => {
-            tg.showAlert("Не удалось проверить занятость столов");
-        });
-}
+            selectedTableName = tableName; 
+
+            if (contactForm) contactForm.style.display = 'none';
+            tg.MainButton.hide();
+            selectedTime = "";
+
+            // Запрашиваем занятость
+            fetch('/api/availability')
+                .then(response => response.json())
+                .then(data => {
+                    let takenTimes = data[tableName] || [];
+                    
+                    document.querySelectorAll('.time-chip').forEach(chip => {
+                        let time = chip.innerText.trim(); 
+                        if (takenTimes.includes(time)) {
+                            chip.style.backgroundColor = '#4a1515';
+                            chip.style.color = '#ff6b6b';
+                            chip.style.pointerEvents = 'none';
+                            chip.classList.remove('selected');
+                            chip.style.opacity = '0.5';
+                        } else {
+                            chip.style.backgroundColor = ''; 
+                            chip.style.color = '';
+                            chip.style.pointerEvents = 'auto'; 
+                            chip.style.opacity = '1';
+                        }
+                    });
+                    
+                    if (timePicker) timePicker.style.display = 'block';
+                })
+                .catch(err => {
+                    tg.showAlert("Не удалось проверить занятость столов");
+                });
+        }
 
         function selectTime(time, element) {
             selectedTime = time;
             document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
             element.classList.add('selected');
             
-            // Показываем форму для ввода контактов
             let contactForm = document.getElementById('contactForm');
             if (contactForm) contactForm.style.display = 'block';
             
-            // Показываем нативную кнопку Telegram (в золотом стиле!)
             tg.MainButton.text = ("ЗАБРОНИРОВАТЬ НА " + time).toUpperCase();
-            tg.MainButton.color = "#d4b886"; // Золотистый цвет кнопки
-            tg.MainButton.textColor = "#1c1c1e"; // Темный цвет текста на кнопке
+            tg.MainButton.color = "#d4b886";
+            tg.MainButton.textColor = "#1c1c1e";
             tg.MainButton.show();
             
-            // Скроллим вниз к полям ввода
             setTimeout(() => {
                 if (contactForm) contactForm.scrollIntoView({ behavior: 'smooth' });
             }, 100);
