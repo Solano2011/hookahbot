@@ -344,8 +344,8 @@ func (h *Handlers) handleAdminAll(c tele.Context) error {
 
 	text := "📋 *Список текущих броней:*\n\n"
 	for _, b := range bookings {
-		text += fmt.Sprintf("👤 ID Гостя: `%d`\n📍 Зал: %s\n🪑 Стол: %s\n⏰ Время: %s\n〰️〰️〰️〰️\n",
-			b.UserID, b.Zone, b.Table, b.TimeSlot)
+		text += fmt.Sprintf("👤 *Имя:* %s\n📞 *Телефон:* %s\n🆔 ID Гостя: `%d`\n📍 Зал: %s\n🪑 Стол: %s\n⏰ Время: %s\n〰️〰️〰️〰️\n",
+			b.UserName, b.Phone, b.UserID, b.Zone, b.Table, b.TimeSlot)
 	}
 
 	return c.Edit(text, tele.ModeMarkdown)

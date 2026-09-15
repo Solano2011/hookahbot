@@ -12,12 +12,14 @@ var (
 )
 
 type Booking struct {
-	ID        string
-	UserID    int64
-	Zone      string
-	Table     string // Новое поле для номера столика
-	TimeSlot  string
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	UserID    int64     `json:"user_id"`
+	UserName  string    `json:"name"`  // Изменили тег на "name" под фронтенд
+	Phone     string    `json:"phone"` // Тег "phone"
+	Zone      string    `json:"zone"`
+	Table     string    `json:"table"`
+	TimeSlot  string    `json:"timeslot"` // Убедись, что здесь TimeSlot с большой S
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type BookingRepository interface {
