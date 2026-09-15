@@ -194,25 +194,37 @@
         function closeDrinks() { document.getElementById('drinks-modal').classList.remove('active'); }
 
         function selectTable(tableName, element) {
-    // 1. Снимаем выделение со ВСЕХ столов в документе
+    let contactForm = document.getElementById('contactForm');
+    let timePicker = document.getElementById('timePicker');
+
+    // Проверяем, кликнули ли мы на уже выбранный стол (отмена выбора)
+    if (element.classList.contains('selected')) {
+        element.classList.remove('selected');
+        selectedTableName = "";
+        selectedTime = "";
+        
+        // Скрываем выбор времени, форму и кнопку Telegram
+        if (timePicker) timePicker.style.display = 'none';
+        if (contactForm) contactForm.style.display = 'none';
+        tg.MainButton.hide();
+        return;
+    }
+
+    // 1. Снимаем выделение со ВСЕХ столов
     document.querySelectorAll('.table-group').forEach(c => {
         c.classList.remove('selected');
     });
 
-    // 2. Выделяем только тот стол, на который кликнули
+    // 2. Выделяем только текущий стол
     element.classList.add('selected');
-
-    // 3. Сохраняем имя выбранного стола
     selectedTableName = tableName; 
 
-    // Скрываем форму контактов и сбрасываем выбранное время при смене стола
-    let contactForm = document.getElementById('contactForm');
+    // Сбрасываем выбранное время и прячем форму при смене стола
     if (contactForm) contactForm.style.display = 'none';
-    
     tg.MainButton.hide();
     selectedTime = "";
 
-    // 4. Запрашиваем с сервера занятость для этого стола
+    // 3. Запрашиваем с сервера занятость для этого стола
     fetch('/api/availability')
         .then(response => response.json())
         .then(data => {
@@ -236,7 +248,7 @@
             });
             
             // Показываем блок со временем
-            document.getElementById('timePicker').style.display = 'block';
+            if (timePicker) timePicker.style.display = 'block';
         })
         .catch(err => {
             tg.showAlert("Не удалось проверить занятость столов");
