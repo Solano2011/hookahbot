@@ -194,51 +194,54 @@
         function closeDrinks() { document.getElementById('drinks-modal').classList.remove('active'); }
 
         function selectTable(tableName, element) {
-            // 1. Сохраняем название стола и выделяем кнопку
-            selectedTableName = tableName; 
-            document.querySelectorAll('.table-chip, .table-group').forEach(c => c.classList.remove('selected'));
-            element.classList.add('selected');
+    // 1. Снимаем выделение со ВСЕХ столов в документе
+    document.querySelectorAll('.table-group').forEach(c => {
+        c.classList.remove('selected');
+    });
 
-            // Скрываем форму и кнопку при смене стола
-            let contactForm = document.getElementById('contactForm');
-            if (contactForm) contactForm.style.display = 'none';
+    // 2. Выделяем только тот стол, на который кликнули
+    element.classList.add('selected');
+
+    // 3. Сохраняем имя выбранного стола
+    selectedTableName = tableName; 
+
+    // Скрываем форму контактов и сбрасываем выбранное время при смене стола
+    let contactForm = document.getElementById('contactForm');
+    if (contactForm) contactForm.style.display = 'none';
+    
+    tg.MainButton.hide();
+    selectedTime = "";
+
+    // 4. Запрашиваем с сервера занятость для этого стола
+    fetch('/api/availability')
+        .then(response => response.json())
+        .then(data => {
+            let takenTimes = data[tableName] || [];
             
-            tg.MainButton.hide();
-            selectedTime = "";
-
-            // 2. Стучимся на сервер за свежим расписанием
-            fetch('/api/availability')
-                .then(response => response.json())
-                .then(data => {
-                    let takenTimes = data[tableName] || [];
-                    
-                    // 3. Проходимся по кнопкам времени
-                    document.querySelectorAll('.time-chip').forEach(chip => {
-                        let time = chip.innerText.trim(); 
-                        
-                        if (takenTimes.includes(time)) {
-                            // Красим в красный и блокируем
-                            chip.style.backgroundColor = '#4a1515';
-                            chip.style.color = '#ff6b6b';
-                            chip.style.pointerEvents = 'none';
-                            chip.classList.remove('selected');
-                            chip.style.opacity = '0.5';
-                        } else {
-                            // Сбрасываем стили для свободных слотов
-                            chip.style.backgroundColor = ''; 
-                            chip.style.color = '';
-                            chip.style.pointerEvents = 'auto'; 
-                            chip.style.opacity = '1';
-                        }
-                    });
-                    
-                    // 4. Показываем блок со временем
-                    document.getElementById('timePicker').style.display = 'block';
-                })
-                .catch(err => {
-                    tg.showAlert("Не удалось проверить занятость столов");
-                });
-        }
+            document.querySelectorAll('.time-chip').forEach(chip => {
+                let time = chip.innerText.trim(); 
+                
+                if (takenTimes.includes(time)) {
+                    chip.style.backgroundColor = '#4a1515';
+                    chip.style.color = '#ff6b6b';
+                    chip.style.pointerEvents = 'none';
+                    chip.classList.remove('selected');
+                    chip.style.opacity = '0.5';
+                } else {
+                    chip.style.backgroundColor = ''; 
+                    chip.style.color = '';
+                    chip.style.pointerEvents = 'auto'; 
+                    chip.style.opacity = '1';
+                }
+            });
+            
+            // Показываем блок со временем
+            document.getElementById('timePicker').style.display = 'block';
+        })
+        .catch(err => {
+            tg.showAlert("Не удалось проверить занятость столов");
+        });
+}
 
         function selectTime(time, element) {
             selectedTime = time;
