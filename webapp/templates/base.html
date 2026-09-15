@@ -197,34 +197,37 @@
     let contactForm = document.getElementById('contactForm');
     let timePicker = document.getElementById('timePicker');
 
-    // Проверяем, кликнули ли мы на уже выбранный стол (отмена выбора)
-    if (element.classList.contains('selected')) {
-        element.classList.remove('selected');
+    // Проверяем, нажат ли уже этот конкретный стол
+    let core = element.querySelector('.table-core');
+    let isAlreadySelected = element.classList.contains('selected') || (core && core.classList.contains('selected'));
+
+    // Принудительно гасим ВСЕ столы и все их внутренности на карте
+    document.querySelectorAll('.table-group').forEach(g => {
+        g.classList.remove('selected');
+        g.querySelectorAll('*').forEach(el => el.classList.remove('selected'));
+    });
+
+    if (isAlreadySelected) {
+        // Если он уже был выбран — просто отменяем выбор
         selectedTableName = "";
         selectedTime = "";
-        
-        // Скрываем выбор времени, форму и кнопку Telegram
         if (timePicker) timePicker.style.display = 'none';
         if (contactForm) contactForm.style.display = 'none';
         tg.MainButton.hide();
         return;
     }
 
-    // 1. Снимаем выделение со ВСЕХ столов
-    document.querySelectorAll('.table-group').forEach(c => {
-        c.classList.remove('selected');
-    });
-
-    // 2. Выделяем только текущий стол
+    // Иначе подсвечиваем только то, на что нажали
     element.classList.add('selected');
+    if (core) core.classList.add('selected');
+    
     selectedTableName = tableName; 
 
-    // Сбрасываем выбранное время и прячем форму при смене стола
     if (contactForm) contactForm.style.display = 'none';
     tg.MainButton.hide();
     selectedTime = "";
 
-    // 3. Запрашиваем с сервера занятость для этого стола
+    // Запрашиваем занятость
     fetch('/api/availability')
         .then(response => response.json())
         .then(data => {
@@ -232,7 +235,6 @@
             
             document.querySelectorAll('.time-chip').forEach(chip => {
                 let time = chip.innerText.trim(); 
-                
                 if (takenTimes.includes(time)) {
                     chip.style.backgroundColor = '#4a1515';
                     chip.style.color = '#ff6b6b';
@@ -247,7 +249,6 @@
                 }
             });
             
-            // Показываем блок со временем
             if (timePicker) timePicker.style.display = 'block';
         })
         .catch(err => {
