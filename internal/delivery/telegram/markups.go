@@ -7,7 +7,7 @@ var (
 
 	// Главное меню
 	BtnBook      = Menu.Data(" Забронировать стол", "btn_book")
-	BtnMenu      = Menu.WebApp(" Меню & Табачная карта", &tele.WebApp{URL: "https://satirical-starlight-scraggly.ngrok-free.dev/?start=menu"})
+	BtnMenu      = Menu.WebApp(" Меню & Табачная карта", &tele.WebApp{URL: "https://hookah-test.ru/?start=menu"})
 	BtnMyBooking = Menu.Data(" Моя бронь", "btn_my_booking")
 	BtnContacts  = Menu.Data(" Локация & Контакты", "btn_contacts")
 
@@ -37,7 +37,7 @@ func BuildMainMenu() *tele.ReplyMarkup {
 
 func BuildZonesMenu() *tele.ReplyMarkup {
 	m := &tele.ReplyMarkup{}
-	baseURL := "https://satirical-starlight-scraggly.ngrok-free.dev"
+	baseURL := "https://hookah-test.ru/?start=menu"
 
 	// Делаем первую кнопку открывашкой Web App!
 	btnLounge := m.WebApp(" Общий лаунж • Атмосферный зал", &tele.WebApp{URL: baseURL})

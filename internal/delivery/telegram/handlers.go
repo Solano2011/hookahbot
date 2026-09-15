@@ -99,7 +99,7 @@ func (h *Handlers) handleZoneSelect(c tele.Context) error {
 	// Вызов Mini App для Общего лаунжа
 	if zone == "Общий лаунж" {
 		m := &tele.ReplyMarkup{}
-		baseURL := "https://satirical-starlight-scraggly.ngrok-free.dev"
+		baseURL := "https://hookah-test.ru/"
 
 		btnBook := m.WebApp("Забронировать стол", &tele.WebApp{URL: baseURL})
 		btnMenu := m.WebApp("Меню & Табачная карта", &tele.WebApp{URL: baseURL + "/?start=menu"})
