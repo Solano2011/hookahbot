@@ -37,7 +37,7 @@ func BuildMainMenu() *tele.ReplyMarkup {
 
 func BuildZonesMenu() *tele.ReplyMarkup {
 	m := &tele.ReplyMarkup{}
-	baseURL := "https://hookah-test.ru/?start=menu"
+	baseURL := "https://hookah-test.ru/"
 
 	// Делаем первую кнопку открывашкой Web App!
 	btnLounge := m.WebApp(" Общий лаунж • Атмосферный зал", &tele.WebApp{URL: baseURL})
