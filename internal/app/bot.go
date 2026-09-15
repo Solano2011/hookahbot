@@ -147,7 +147,7 @@ func Run(token string, adminID int64, db *postgres.DB) {
 				return
 			}
 
-			tmpl, err := template.ParseGlob("webapp/templates/*.html")
+			tmpl, err := template.ParseGlob("/root/hookahbot/webapp/templates/*.html")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
