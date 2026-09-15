@@ -96,7 +96,6 @@ func (h *Handlers) handleZoneSelect(c tele.Context) error {
 	_ = c.Delete()
 
 	// Вызов Mini App для Общего лаунжа
-	// Вызов Mini App для Общего лаунжа
 	if zone == "Общий лаунж" {
 		m := &tele.ReplyMarkup{}
 		baseURL := "https://hookah-test.ru/"
@@ -104,8 +103,6 @@ func (h *Handlers) handleZoneSelect(c tele.Context) error {
 		btnBook := m.WebApp("Забронировать стол", &tele.WebApp{URL: baseURL})
 		btnMenu := m.WebApp("Меню & Табачная карта", &tele.WebApp{URL: baseURL + "/?start=menu"})
 
-		// Удалили локальные btnMyBook и btnLocation!
-		// Вместо них используем глобальные BtnMyBooking и BtnContacts:
 		m.Inline(
 			m.Row(btnBook),
 			m.Row(btnMenu, BtnMyBooking),
@@ -146,8 +143,8 @@ func (h *Handlers) handleWebApp(c tele.Context) error {
 		return c.Send("Ошибка сохранения стола.")
 	}
 
-	// 2. СРАЗУ сохраняем время (финализируем бронь)
-	booking, err := h.bookingService.CompleteBookingDraft(ctx, userID, timeSlot)
+	// 2. СРАЗУ сохраняем время (финализируем бронь) с пустыми контактами (так как через веб-апп бронируют отдельно)
+	booking, err := h.bookingService.CompleteBookingDraft(ctx, userID, timeSlot, "", "")
 	if err != nil {
 		if errors.Is(err, domain.ErrTimeSlotTaken) {
 			return c.Send("Этот слот уже занят! Начните бронирование заново.")
@@ -194,7 +191,8 @@ func (h *Handlers) handleTimeSelect(c tele.Context) error {
 	timeSlot := c.Data()
 	ctx := context.Background()
 
-	booking, err := h.bookingService.CompleteBookingDraft(ctx, c.Sender().ID, timeSlot)
+	// Передаем пустые имя/телефон для брони через классический интерфейс бота
+	booking, err := h.bookingService.CompleteBookingDraft(ctx, c.Sender().ID, timeSlot, c.Sender().FirstName, "-")
 	if err != nil {
 		if errors.Is(err, domain.ErrTimeSlotTaken) {
 			return c.Respond(&tele.CallbackResponse{Text: " Этот слот уже занят! Выберите другое время.", ShowAlert: true})
@@ -312,12 +310,10 @@ func (h *Handlers) handleAdminResetAll(c tele.Context) error {
 
 // 1. Сама команда /admin
 func (h *Handlers) handleAdminCommand(c tele.Context) error {
-	// Секретный фейсконтроль: пускаем только админа
 	if c.Sender().ID != h.adminID {
 		return c.Send("У вас нет доступа к этой команде 🛑")
 	}
 
-	// Создаем кнопки прямо здесь (чтобы не захламлять markups.go)
 	m := &tele.ReplyMarkup{}
 	btnAll := m.Data("📋 Посмотреть все брони", "admin_all")
 	btnClear := m.Data("🗑 Очистить базу", "admin_clear")

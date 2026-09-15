@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"hookah-bot/internal/delivery/telegram"
-	"hookah-bot/internal/repository/postgres" // Добавили импорт базы данных
+	"hookah-bot/internal/repository/postgres"
 	"hookah-bot/internal/service"
 
 	tele "gopkg.in/telebot.v3"
@@ -28,10 +28,6 @@ func Run(token string, adminID int64, db *postgres.DB) {
 		log.Fatalf("Ошибка создания бота: %v", err)
 	}
 
-	// ---------------------------------------------------------
-	// В БУДУЩЕМ мы поменяем memory.NewBookingRepo() на базу данных:
-	// repo := postgres.NewBookingRepo(db)
-	// ---------------------------------------------------------
 	repo := postgres.NewBookingRepo(db)
 
 	bookingService := service.NewBookingService(repo)
@@ -47,6 +43,8 @@ func Run(token string, adminID int64, db *postgres.DB) {
 				Table  string `json:"table"`
 				Time   string `json:"time"`
 				UserID int64  `json:"userId"`
+				Name   string `json:"name"`  // Принимаем имя с фронтенда
+				Phone  string `json:"phone"` // Принимаем телефон с фронтенда
 			}
 
 			if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
@@ -55,7 +53,7 @@ func Run(token string, adminID int64, db *postgres.DB) {
 			}
 
 			ctx := context.Background()
-			// 0. СОЗДАЕМ ЧЕРНОВИК НА ЛЕТУ (так как WebApp открылся сразу)
+			// 0. СОЗДАЕМ ЧЕРНОВИК НА ЛЕТУ
 			if err := bookingService.StartBookingDraft(ctx, data.UserID, "Общий лаунж"); err != nil {
 				log.Printf("Ошибка создания черновика: %v", err)
 				http.Error(w, "Ошибка создания черновика", http.StatusInternalServerError)
@@ -70,16 +68,20 @@ func Run(token string, adminID int64, db *postgres.DB) {
 			}
 
 			// 2. ФИНАЛИЗИРУЕМ БРОНЬ (сохраняем время)
-			booking, err := bookingService.CompleteBookingDraft(ctx, data.UserID, data.Time)
+			booking, err := bookingService.CompleteBookingDraft(ctx, data.UserID, data.Time, data.Name, data.Phone)
 			if err != nil {
 				log.Printf("Ошибка завершения брони: %v", err)
 				http.Error(w, "Ошибка завершения брони", http.StatusConflict)
 				return
 			}
 
-			log.Printf("🔥 НОВАЯ БРОНЬ! Пользователь %d выбрал %s на %s\n", data.UserID, booking.Table, booking.TimeSlot)
+			// Записываем имя и телефон в структуру брони
+			booking.UserName = data.Name
+			booking.Phone = data.Phone
 
-			// 3. Отправляем красивое сообщение пользователю (и возвращаем главное меню)
+			log.Printf("🔥 НОВАЯ БРОНЬ! Пользователь %s (%s) выбрал %s на %s\n", data.Name, data.Phone, booking.Table, booking.TimeSlot)
+
+			// 3. Отправляем красивое сообщение пользователю
 			user := &tele.User{ID: data.UserID}
 			text := fmt.Sprintf(
 				"✅ *Бронь успешно подтверждена!*\n"+
@@ -91,21 +93,22 @@ func Run(token string, adminID int64, db *postgres.DB) {
 				booking.Zone, booking.Table, booking.TimeSlot,
 			)
 
-			// Отправляем текст и прикрепляем главное меню из пакета telegram
 			_, err = b.Send(user, text, telegram.BuildMainMenu(), tele.ModeMarkdown)
 			if err != nil {
 				log.Printf("Ошибка при отправке сообщения: %v", err)
 			}
 
-			// 4. Уведомляем админа
+			// 4. Уведомляем админа (теперь с именем и телефоном!)
 			if adminID != 0 {
 				notifyText := fmt.Sprintf(
 					"🔔 *НОВАЯ БРОНЬ В СИСТЕМЕ*\n"+
 						"━━━━━━━━━━━━━━━\n"+
-						" Гость ID: `%d`\n"+
-						" Зал: *%s* | *%s*\n"+
-						" Время: *%s*",
-					data.UserID, booking.Zone, booking.Table, booking.TimeSlot,
+						"👤 *Имя:* %s\n"+
+						"📞 *Телефон:* %s\n"+
+						"🆔 Гость ID: `%d`\n"+
+						"📍 Зал: *%s* | Стол: *%s*\n"+
+						"⏰ Время: *%s*",
+					data.Name, data.Phone, data.UserID, booking.Zone, booking.Table, booking.TimeSlot,
 				)
 				_, _ = b.Send(&tele.User{ID: adminID}, notifyText, tele.ModeMarkdown)
 			}
@@ -116,14 +119,12 @@ func Run(token string, adminID int64, db *postgres.DB) {
 		// --- ЭНДПОИНТ ДЛЯ ПРОВЕРКИ ЗАНЯТОСТИ ---
 		http.HandleFunc("/api/availability", func(w http.ResponseWriter, r *http.Request) {
 			ctx := context.Background()
-			// Запрашиваем у сервиса все активные брони
 			bookings, err := bookingService.GetAllActiveBookings(ctx)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			// Группируем время по столам
 			bookedMap := make(map[string][]string)
 			for _, b := range bookings {
 				if b.TimeSlot != "" {
@@ -131,7 +132,6 @@ func Run(token string, adminID int64, db *postgres.DB) {
 				}
 			}
 
-			// Возвращаем JSON на фронтенд
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(bookedMap)
 		})
@@ -142,7 +142,6 @@ func Run(token string, adminID int64, db *postgres.DB) {
 
 		// 2. Обрабатываем главную страницу через шаблонизатор
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			// Защита от лишних запросов
 			if r.URL.Path != "/" {
 				http.NotFound(w, r)
 				return

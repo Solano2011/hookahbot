@@ -47,7 +47,8 @@ func TestBookingSvc_ConcurrentBooking(t *testing.T) {
 			// Ждем отмашки, чтобы все 50 горутин ударили одновременно
 			<-startBarrier
 
-			_, err := svc.CompleteBookingDraft(ctx, userID, targetTime)
+			// Передаем тестовое имя и телефон в CompleteBookingDraft
+			_, err := svc.CompleteBookingDraft(ctx, userID, targetTime, "Тест", "+70000000000")
 			if err == nil {
 				atomic.AddInt64(&successCount, 1)
 			} else if errors.Is(err, domain.ErrTimeSlotTaken) {

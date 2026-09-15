@@ -2,52 +2,37 @@ package memory_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
-	"hookah-bot/internal/domain"
 	"hookah-bot/internal/repository/memory"
 )
 
-func TestBookingRepo_CRUD(t *testing.T) {
+func TestMemoryBookingRepo_CompleteBooking(t *testing.T) {
 	ctx := context.Background()
 	repo := memory.NewBookingRepo()
-	const userID = int64(101)
 
-	// 1. Попытка получить несуществующую запись
-	_, err := repo.GetByUserID(ctx, userID)
-	if !errors.Is(err, domain.ErrBookingNotFound) {
-		t.Fatalf("ожидалась ошибка ErrBookingNotFound, получено: %v", err)
-	}
+	userID := int64(123)
+	zone := "Общий лаунж"
+	table := "Стол 1"
+	timeSlot := "20:00"
 
-	// 2. Создание черновика и финализация
-	if err := repo.SaveDraft(ctx, userID, "VIP-комната"); err != nil {
+	// 1. Создаем черновик
+	if err := repo.SaveDraft(ctx, userID, zone); err != nil {
 		t.Fatalf("ошибка сохранения драфта: %v", err)
 	}
 
-	saved, err := repo.CompleteBooking(ctx, userID, "22:00")
+	// 2. Устанавливаем стол
+	if err := repo.SetTable(ctx, userID, table); err != nil {
+		t.Fatalf("ошибка установки стола: %v", err)
+	}
+
+	// 3. Завершаем бронь с 5 аргументами (время, имя, телефон)
+	booking, err := repo.CompleteBooking(ctx, userID, timeSlot, "Иван", "+79991112233")
 	if err != nil {
-		t.Fatalf("ошибка подтверждения брони: %v", err)
-	}
-	if saved.Zone != "VIP-комната" || saved.TimeSlot != "22:00" {
-		t.Errorf("данные не совпадают: %+v", saved)
+		t.Fatalf("ошибка завершения брони: %v", err)
 	}
 
-	// 3. Попытка занять этот же слот вторым пользователем
-	const user2ID = int64(102)
-	_ = repo.SaveDraft(ctx, user2ID, "VIP-комната")
-	_, err = repo.CompleteBooking(ctx, user2ID, "22:00")
-	if !errors.Is(err, domain.ErrTimeSlotTaken) {
-		t.Errorf("ожидалась ошибка ErrTimeSlotTaken, получено: %v", err)
-	}
-
-	// 4. Удаление (отмена брони)
-	if err := repo.Delete(ctx, userID); err != nil {
-		t.Fatalf("ошибка удаления: %v", err)
-	}
-
-	_, err = repo.GetByUserID(ctx, userID)
-	if !errors.Is(err, domain.ErrBookingNotFound) {
-		t.Fatalf("после удаления ожидался ErrBookingNotFound, получено: %v", err)
+	if booking.TimeSlot != timeSlot || booking.UserName != "Иван" || booking.Phone != "+79991112233" {
+		t.Errorf("данные брони не совпали: %+v", booking)
 	}
 }

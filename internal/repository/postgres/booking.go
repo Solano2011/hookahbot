@@ -61,7 +61,7 @@ func (r *BookingRepo) SetTable(ctx context.Context, userID int64, table string) 
 	return nil
 }
 
-func (r *BookingRepo) CompleteBooking(ctx context.Context, userID int64, timeSlot string) (*domain.Booking, error) {
+func (r *BookingRepo) CompleteBooking(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*domain.Booking, error) {
 	// 1. Получаем текущий черновик, чтобы узнать зону и стол
 	var zone, table string
 	err := r.db.Conn.QueryRow(ctx, `

@@ -11,8 +11,8 @@ import (
 
 type mockBookingRepo struct {
 	saveDraftFunc       func(ctx context.Context, userID int64, zone string) error
-	setTableFunc        func(ctx context.Context, userID int64, table string) error // Добавлен мок-метод
-	completeBookingFunc func(ctx context.Context, userID int64, timeSlot string) (*domain.Booking, error)
+	setTableFunc        func(ctx context.Context, userID int64, table string) error
+	completeBookingFunc func(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*domain.Booking, error)
 	getByUserIDFunc     func(ctx context.Context, userID int64) (*domain.Booking, error)
 	deleteFunc          func(ctx context.Context, userID int64) error
 	getAllActiveFunc    func(ctx context.Context) ([]domain.Booking, error)
@@ -26,7 +26,6 @@ func (m *mockBookingRepo) SaveDraft(ctx context.Context, userID int64, zone stri
 	return nil
 }
 
-// Реализация нового метода из интерфейса
 func (m *mockBookingRepo) SetTable(ctx context.Context, userID int64, table string) error {
 	if m.setTableFunc != nil {
 		return m.setTableFunc(ctx, userID, table)
@@ -34,9 +33,9 @@ func (m *mockBookingRepo) SetTable(ctx context.Context, userID int64, table stri
 	return nil
 }
 
-func (m *mockBookingRepo) CompleteBooking(ctx context.Context, userID int64, timeSlot string) (*domain.Booking, error) {
+func (m *mockBookingRepo) CompleteBooking(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*domain.Booking, error) {
 	if m.completeBookingFunc != nil {
-		return m.completeBookingFunc(ctx, userID, timeSlot)
+		return m.completeBookingFunc(ctx, userID, timeSlot, name, phone)
 	}
 	return nil, nil
 }
@@ -109,7 +108,7 @@ func TestBookingSvc_CompleteBookingDraft(t *testing.T) {
 	}{
 		{
 			name:         "Успешное завершение брони",
-			completeRes:  &domain.Booking{UserID: userID, Zone: "PS5", TimeSlot: "20:00"},
+			completeRes:  &domain.Booking{UserID: userID, Zone: "PS5", TimeSlot: "20:00", UserName: "Иван", Phone: "+79991112233"},
 			completeErr:  nil,
 			expectedErr:  nil,
 			expectedTime: "20:00",
@@ -131,13 +130,13 @@ func TestBookingSvc_CompleteBookingDraft(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockBookingRepo{
-				completeBookingFunc: func(ctx context.Context, uID int64, slot string) (*domain.Booking, error) {
+				completeBookingFunc: func(ctx context.Context, uID int64, slot string, name string, phone string) (*domain.Booking, error) {
 					return tt.completeRes, tt.completeErr
 				},
 			}
 
 			svc := service.NewBookingService(repo)
-			res, err := svc.CompleteBookingDraft(ctx, userID, "20:00")
+			res, err := svc.CompleteBookingDraft(ctx, userID, "20:00", "Иван", "+79991112233")
 
 			if !errors.Is(err, tt.expectedErr) {
 				t.Fatalf("ожидалась ошибка %v, получена %v", tt.expectedErr, err)
@@ -188,7 +187,7 @@ func TestBookingSvc_AdminMethods(t *testing.T) {
 	repo := &mockBookingRepo{
 		getAllActiveFunc: func(ctx context.Context) ([]domain.Booking, error) {
 			activeCalled = true
-			return []domain.Booking{{UserID: 1, Zone: "VIP", TimeSlot: "20:00"}}, nil
+			return []domain.Booking{{UserID: 1, Zone: "VIP", TimeSlot: "20:00", UserName: "Тест", Phone: "+7000"}}, nil
 		},
 		resetAllFunc: func(ctx context.Context) error {
 			resetCalled = true
