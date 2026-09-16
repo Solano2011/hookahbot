@@ -162,13 +162,23 @@ func (h *Handlers) handleWebApp(c tele.Context) error {
 	ctx := context.Background()
 	userID := c.Sender().ID
 
+	// ВАЖНО: Удаляем все старые подтвержденные брони перед созданием новой
+	// Это защищает от сценария, когда пользователь использует старую кнопку Web App из истории чата
+	_ = h.bookingService.CancelConfirmedBooking(ctx, userID)
+
 	// 1. Сохраняем стол
 	if err := h.bookingService.SetBookingTable(ctx, userID, table); err != nil {
 		return c.Send("Ошибка сохранения стола.")
 	}
 
-	// 2. СРАЗУ сохраняем время (финализируем бронь) с пустыми контактами (так как через веб-апп бронируют отдельно)
-	booking, err := h.bookingService.CompleteBookingDraft(ctx, userID, timeSlot, "", "")
+	// 2. Формируем имя пользователя из данных Telegram
+	userName := c.Sender().FirstName
+	if c.Sender().LastName != "" {
+		userName += " " + c.Sender().LastName
+	}
+
+	// 3. СРАЗУ сохраняем время (финализируем бронь) с данными из Telegram
+	booking, err := h.bookingService.CompleteBookingDraft(ctx, userID, timeSlot, userName, "-")
 	if err != nil {
 		if errors.Is(err, domain.ErrTimeSlotTaken) {
 			return c.Send("Этот слот уже занят! Начните бронирование заново.")
@@ -214,6 +224,10 @@ func (h *Handlers) handleWebApp(c tele.Context) error {
 func (h *Handlers) handleTimeSelect(c tele.Context) error {
 	timeSlot := c.Data()
 	ctx := context.Background()
+
+	// ВАЖНО: Удаляем все старые подтвержденные брони перед созданием новой
+	// Это защищает от повторного бронирования через классический интерфейс
+	_ = h.bookingService.CancelConfirmedBooking(ctx, c.Sender().ID)
 
 	// Передаем пустые имя/телефон для брони через классический интерфейс бота
 	booking, err := h.bookingService.CompleteBookingDraft(ctx, c.Sender().ID, timeSlot, c.Sender().FirstName, "-")
@@ -294,7 +308,10 @@ func (h *Handlers) handleConfirmReplace(c tele.Context) error {
 	userID := c.Sender().ID
 
 	// Удаляем старую подтвержденную бронь
-	_ = h.bookingService.CancelConfirmedBooking(ctx, userID)
+	if err := h.bookingService.CancelConfirmedBooking(ctx, userID); err != nil {
+		_ = c.Delete()
+		return c.Send("⚠️ Ошибка при отмене старой брони. Попробуйте позже.", BuildMainMenu())
+	}
 
 	// Получаем черновик с новой зоной
 	draft, err := h.bookingService.GetUserDraft(ctx, userID)

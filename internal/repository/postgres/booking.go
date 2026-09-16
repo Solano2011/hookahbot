@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"hookah-bot/internal/domain"
@@ -165,8 +166,21 @@ func (r *BookingRepo) Delete(ctx context.Context, userID int64) error {
 
 func (r *BookingRepo) DeleteConfirmed(ctx context.Context, userID int64) error {
 	// Удаляем только подтвержденные брони
-	_, err := r.db.Conn.Exec(ctx, `DELETE FROM bookings WHERE user_id = $1 AND status = 'confirmed'`, userID)
-	return err
+	log.Printf("🗑️ Попытка удалить подтвержденные брони для userID=%d", userID)
+	cmdTag, err := r.db.Conn.Exec(ctx, `DELETE FROM bookings WHERE user_id = $1 AND status = 'confirmed'`, userID)
+	if err != nil {
+		log.Printf("❌ Ошибка при удалении подтвержденных броней для userID=%d: %v", userID, err)
+		return err
+	}
+	// Логируем количество удаленных записей
+	rowsAffected := cmdTag.RowsAffected()
+	log.Printf("✅ Удалено подтвержденных броней для userID=%d: %d записей", userID, rowsAffected)
+	if rowsAffected == 0 {
+		// Не было записей для удаления - это не ошибка, но хорошо бы знать
+		log.Printf("⚠️ Не найдено подтвержденных броней для удаления у userID=%d", userID)
+		return nil
+	}
+	return nil
 }
 
 func (r *BookingRepo) DeleteDraft(ctx context.Context, userID int64) error {
