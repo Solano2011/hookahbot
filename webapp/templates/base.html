@@ -274,7 +274,7 @@
         tg.onEvent('mainButtonClicked', function(){
             const nameEl = document.getElementById('userName');
             const phoneEl = document.getElementById('userPhone');
-            
+
             const name = nameEl ? nameEl.value.trim() : "";
             const phone = phoneEl ? phoneEl.value.trim() : "";
 
@@ -285,18 +285,19 @@
 
             let userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0;
             let username = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.username : "";
-            
+
             tg.MainButton.showProgress();
-            
-            let payload = { 
-                table: selectedTableName, 
-                time: selectedTime, 
+
+            let payload = {
+                table: selectedTableName,
+                time: selectedTime,
                 userId: userId,
                 username: username,
                 name: name,
-                phone: phone
+                phone: phone,
+                initData: tg.initData  // КРИТИЧНО: Отправляем initData для проверки подписи
             };
-            
+
             fetch('/api/book', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -305,6 +306,10 @@
                 tg.MainButton.hideProgress();
                 if (response.ok) {
                     tg.close();
+                } else if (response.status === 401) {
+                    tg.showAlert("Ошибка авторизации. Перезапустите приложение.");
+                } else if (response.status === 429) {
+                    tg.showAlert("Слишком много запросов. Подождите немного.");
                 } else {
                     tg.showAlert("Ошибка бронирования на сервере");
                 }

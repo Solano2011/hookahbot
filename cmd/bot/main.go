@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 
 	"hookah-bot/internal/app"
-	"hookah-bot/internal/repository/postgres" // Добавили импорт твоего пакета
+	"hookah-bot/internal/repository/postgres"
 
 	"github.com/joho/godotenv"
 )
@@ -34,11 +35,20 @@ func main() {
 		}
 	}
 
-	// --- НОВЫЙ БЛОК: Подключение к базе данных ---
+	// Строим строку подключения из переменных окружения
+	dbHost := getEnvOrDefault("DB_HOST", "localhost")
+	dbPort := getEnvOrDefault("DB_PORT", "5432")
+	dbUser := getEnvOrDefault("DB_USER", "hookah_user")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		log.Fatal("Укажите DB_PASSWORD в переменных окружения")
+	}
+	dbName := getEnvOrDefault("DB_NAME", "hookah_db")
+	dbSSLMode := getEnvOrDefault("DB_SSLMODE", "require")
 
-	// ВАЖНО: Замени "твой_пароль" на реальный пароль от БД!
-	// В будущем мы тоже вынесем эту строку в .env файл.
-	connString := "postgres://hookah_user:Solano2011!.-@localhost:5432/hookah_db?sslmode=disable"
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		dbUser, dbPassword, dbHost, dbPort, dbName, dbSSLMode)
+
 	db, err := postgres.NewPostgresDB(connString)
 	if err != nil {
 		log.Fatalf("Не удалось инициализировать базу данных: %v", err)
@@ -46,8 +56,13 @@ func main() {
 	// Закрываем соединение при остановке бота
 	defer db.Conn.Close(context.Background())
 
-	// --- КОНЕЦ НОВОГО БЛОКА ---
-
-	// Передаем db внутрь app.Run (нам придется немного изменить app.Run)
+	// Передаем db внутрь app.Run
 	app.Run(token, adminID, db)
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

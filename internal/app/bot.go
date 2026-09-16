@@ -7,11 +7,13 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"hookah-bot/internal/delivery/telegram"
 	"hookah-bot/internal/repository/postgres"
 	"hookah-bot/internal/service"
+	"hookah-bot/internal/validation"
 
 	tele "gopkg.in/telebot.v3"
 )
@@ -38,17 +40,76 @@ func Run(token string, adminID int64, db *postgres.DB) {
 
 	// --- ЗАПУСК ВЕБ-СЕРВЕРА ---
 	go func() {
+		// Rate limiting map (потокобезопасная реализация)
+		var rateLimitMap sync.Map
+
 		http.HandleFunc("/api/book", func(w http.ResponseWriter, r *http.Request) {
+			// CORS headers
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			if r.Method != "POST" {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+
 			var data struct {
-				Table  string `json:"table"`
-				Time   string `json:"time"`
-				UserID int64  `json:"userId"`
-				Name   string `json:"name"`  // Принимаем имя с фронтенда
-				Phone  string `json:"phone"` // Принимаем телефон с фронтенда
+				Table    string `json:"table"`
+				Time     string `json:"time"`
+				UserID   int64  `json:"userId"`
+				Name     string `json:"name"`
+				Phone    string `json:"phone"`
+				InitData string `json:"initData"` // Данные для проверки подписи
 			}
 
 			if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, "Invalid request format", http.StatusBadRequest)
+				return
+			}
+
+			// КРИТИЧНО: Проверка подлинности запроса от Telegram WebApp
+			if data.InitData != "" {
+				if err := validation.VerifyTelegramWebAppData(data.InitData, token); err != nil {
+					log.Printf("⚠️ Неверная подпись WebApp: %v", err)
+					http.Error(w, "Unauthorized", http.StatusUnauthorized)
+					return
+				}
+			}
+
+			// Rate limiting: не более 1 запроса в 5 секунд от одного пользователя
+			if val, ok := rateLimitMap.Load(data.UserID); ok {
+				lastReq := val.(time.Time)
+				if time.Since(lastReq) < 5*time.Second {
+					http.Error(w, "Too many requests", http.StatusTooManyRequests)
+					return
+				}
+			}
+			rateLimitMap.Store(data.UserID, time.Now())
+
+			// Валидация входных данных
+			if err := validation.ValidateName(data.Name); err != nil {
+				http.Error(w, fmt.Sprintf("Invalid name: %v", err), http.StatusBadRequest)
+				return
+			}
+
+			if err := validation.ValidatePhone(data.Phone); err != nil {
+				http.Error(w, fmt.Sprintf("Invalid phone: %v", err), http.StatusBadRequest)
+				return
+			}
+
+			if err := validation.ValidateTableName(data.Table); err != nil {
+				http.Error(w, fmt.Sprintf("Invalid table: %v", err), http.StatusBadRequest)
+				return
+			}
+
+			if err := validation.ValidateTimeSlot(data.Time); err != nil {
+				http.Error(w, fmt.Sprintf("Invalid time slot: %v", err), http.StatusBadRequest)
 				return
 			}
 
@@ -56,14 +117,14 @@ func Run(token string, adminID int64, db *postgres.DB) {
 			// 0. СОЗДАЕМ ЧЕРНОВИК НА ЛЕТУ
 			if err := bookingService.StartBookingDraft(ctx, data.UserID, "Общий лаунж"); err != nil {
 				log.Printf("Ошибка создания черновика: %v", err)
-				http.Error(w, "Ошибка создания черновика", http.StatusInternalServerError)
+				http.Error(w, "Failed to create booking draft", http.StatusInternalServerError)
 				return
 			}
 
 			// 1. СОХРАНЯЕМ СТОЛ В СЕРВИС
 			if err := bookingService.SetBookingTable(ctx, data.UserID, data.Table); err != nil {
 				log.Printf("Ошибка сохранения стола: %v", err)
-				http.Error(w, "Ошибка сохранения стола", http.StatusInternalServerError)
+				http.Error(w, "Failed to save table", http.StatusInternalServerError)
 				return
 			}
 
@@ -71,34 +132,30 @@ func Run(token string, adminID int64, db *postgres.DB) {
 			booking, err := bookingService.CompleteBookingDraft(ctx, data.UserID, data.Time, data.Name, data.Phone)
 			if err != nil {
 				log.Printf("Ошибка завершения брони: %v", err)
-				http.Error(w, "Ошибка завершения брони", http.StatusConflict)
+				http.Error(w, "Booking conflict or error", http.StatusConflict)
 				return
 			}
 
-			// Записываем имя и телефон в структуру брони
-			booking.UserName = data.Name
-			booking.Phone = data.Phone
-
-			log.Printf("🔥 НОВАЯ БРОНЬ! Пользователь %s (%s) выбрал %s на %s\n", data.Name, data.Phone, booking.Table, booking.TimeSlot)
+			log.Printf("✅ Новая бронь: ID=%d, стол=%s, время=%s\n", data.UserID, booking.Table, booking.TimeSlot)
 
 			// 3. Отправляем красивое сообщение пользователю
 			user := &tele.User{ID: data.UserID}
 			text := fmt.Sprintf(
 				"✅ *Бронь успешно подтверждена!*\n"+
 					"━━━━━━━━━━━━━━━\n"+
-					" Зал: `%s` | Стол: `%s`\n"+
-					" Время: `%s`\n"+
-					" Статус: *Подтверждено*\n\n"+
+					"📍 Зал: `%s` | Стол: `%s`\n"+
+					"⏰ Время: `%s`\n"+
+					"✨ Статус: *Подтверждено*\n\n"+
 					"Ждем вас в гости!",
 				booking.Zone, booking.Table, booking.TimeSlot,
 			)
 
 			_, err = b.Send(user, text, telegram.BuildMainMenu(), tele.ModeMarkdown)
 			if err != nil {
-				log.Printf("Ошибка при отправке сообщения: %v", err)
+				log.Printf("⚠️ Ошибка при отправке сообщения: %v", err)
 			}
 
-			// 4. Уведомляем админа (теперь с именем и телефоном!)
+			// 4. Уведомляем админа
 			if adminID != 0 {
 				notifyText := fmt.Sprintf(
 					"🔔 *НОВАЯ БРОНЬ В СИСТЕМЕ*\n"+
@@ -114,6 +171,8 @@ func Run(token string, adminID int64, db *postgres.DB) {
 			}
 
 			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 		})
 
 		// --- ЭНДПОИНТ ДЛЯ ПРОВЕРКИ ЗАНЯТОСТИ ---
@@ -147,8 +206,9 @@ func Run(token string, adminID int64, db *postgres.DB) {
 				return
 			}
 
-			tmpl, err := template.ParseGlob("/root/hookahbot/webapp/templates/*.html")
+			tmpl, err := template.ParseGlob("webapp/templates/*.html")
 			if err != nil {
+				log.Printf("Ошибка загрузки шаблонов: %v", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

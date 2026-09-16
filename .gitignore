@@ -2,9 +2,20 @@
 *.exe
 *.exe~
 /hookah-bot
+hookah_bot_linux
+bot.exe
 
 # Конфиги и переменные окружения (где обычно лежат токены)
 .env
+.env.local
+*.env
 
 # Настройки редактора
 .vscode/
+
+# Временные файлы
+*.log
+*.tmp
+
+# Ngrok
+ngrok.exe
