@@ -114,29 +114,51 @@ func Run(token string, adminID int64, db *postgres.DB) {
 			}
 
 			ctx := context.Background()
+
+			log.Printf("🌐 [HTTP API] Получен запрос на бронь от userID=%d: стол=%s, время=%s", data.UserID, data.Table, data.Time)
+
+			// ВАЖНО: Проверяем и удаляем все старые подтвержденные брони перед созданием новой
+			existingBooking, err := bookingService.GetUserBooking(ctx, data.UserID)
+			if err == nil && existingBooking.TimeSlot != "" {
+				log.Printf("⚠️ [HTTP API] У userID=%d найдена существующая бронь: зал=%s, стол=%s, время=%s",
+					data.UserID, existingBooking.Zone, existingBooking.Table, existingBooking.TimeSlot)
+
+				if err := bookingService.CancelConfirmedBooking(ctx, data.UserID); err != nil {
+					log.Printf("❌ [HTTP API] Ошибка удаления старой брони для userID=%d: %v", data.UserID, err)
+					http.Error(w, "Failed to cancel old booking", http.StatusInternalServerError)
+					return
+				}
+				log.Printf("✅ [HTTP API] Старая бронь userID=%d успешно удалена", data.UserID)
+			} else {
+				log.Printf("ℹ️ [HTTP API] У userID=%d нет существующих броней", data.UserID)
+			}
+
 			// 0. СОЗДАЕМ ЧЕРНОВИК НА ЛЕТУ
 			if err := bookingService.StartBookingDraft(ctx, data.UserID, "Общий лаунж"); err != nil {
-				log.Printf("Ошибка создания черновика: %v", err)
+				log.Printf("❌ [HTTP API] Ошибка создания черновика для userID=%d: %v", data.UserID, err)
 				http.Error(w, "Failed to create booking draft", http.StatusInternalServerError)
 				return
 			}
+			log.Printf("✅ [HTTP API] Черновик создан для userID=%d", data.UserID)
 
 			// 1. СОХРАНЯЕМ СТОЛ В СЕРВИС
 			if err := bookingService.SetBookingTable(ctx, data.UserID, data.Table); err != nil {
-				log.Printf("Ошибка сохранения стола: %v", err)
+				log.Printf("❌ [HTTP API] Ошибка сохранения стола для userID=%d: %v", data.UserID, err)
 				http.Error(w, "Failed to save table", http.StatusInternalServerError)
 				return
 			}
+			log.Printf("✅ [HTTP API] Стол сохранён для userID=%d: %s", data.UserID, data.Table)
 
 			// 2. ФИНАЛИЗИРУЕМ БРОНЬ (сохраняем время)
 			booking, err := bookingService.CompleteBookingDraft(ctx, data.UserID, data.Time, data.Name, data.Phone)
 			if err != nil {
-				log.Printf("Ошибка завершения брони: %v", err)
+				log.Printf("❌ [HTTP API] Ошибка завершения брони для userID=%d: %v", data.UserID, err)
 				http.Error(w, "Booking conflict or error", http.StatusConflict)
 				return
 			}
 
-			log.Printf("✅ Новая бронь: ID=%d, стол=%s, время=%s\n", data.UserID, booking.Table, booking.TimeSlot)
+			log.Printf("✅ [HTTP API] Бронь успешно создана для userID=%d: зал=%s, стол=%s, время=%s",
+				data.UserID, booking.Zone, booking.Table, booking.TimeSlot)
 
 			// 3. Отправляем красивое сообщение пользователю
 			user := &tele.User{ID: data.UserID}
