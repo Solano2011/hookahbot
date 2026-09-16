@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"hookah-bot/internal/domain"
@@ -162,14 +163,29 @@ func (h *Handlers) handleWebApp(c tele.Context) error {
 	ctx := context.Background()
 	userID := c.Sender().ID
 
-	// ВАЖНО: Удаляем все старые подтвержденные брони перед созданием новой
-	// Это защищает от сценария, когда пользователь использует старую кнопку Web App из истории чата
-	_ = h.bookingService.CancelConfirmedBooking(ctx, userID)
+	log.Printf("🌐 [Web App] Получены данные от userID=%d: стол=%s, время=%s", userID, table, timeSlot)
+
+	// ВАЖНО: Проверяем и удаляем все старые подтвержденные брони перед созданием новой
+	existingBooking, err := h.bookingService.GetUserBooking(ctx, userID)
+	if err == nil && existingBooking.TimeSlot != "" {
+		log.Printf("⚠️ [Web App] У userID=%d найдена существующая бронь: зал=%s, стол=%s, время=%s",
+			userID, existingBooking.Zone, existingBooking.Table, existingBooking.TimeSlot)
+
+		if err := h.bookingService.CancelConfirmedBooking(ctx, userID); err != nil {
+			log.Printf("❌ [Web App] Ошибка удаления старой брони для userID=%d: %v", userID, err)
+			return c.Send("Ошибка при удалении старой брони. Попробуйте позже.")
+		}
+		log.Printf("✅ [Web App] Старая бронь userID=%d успешно удалена", userID)
+	} else {
+		log.Printf("ℹ️ [Web App] У userID=%d нет существующих броней", userID)
+	}
 
 	// 1. Сохраняем стол
 	if err := h.bookingService.SetBookingTable(ctx, userID, table); err != nil {
+		log.Printf("❌ [Web App] Ошибка сохранения стола для userID=%d: %v", userID, err)
 		return c.Send("Ошибка сохранения стола.")
 	}
+	log.Printf("✅ [Web App] Стол сохранён для userID=%d: %s", userID, table)
 
 	// 2. Формируем имя пользователя из данных Telegram
 	userName := c.Sender().FirstName
@@ -181,10 +197,15 @@ func (h *Handlers) handleWebApp(c tele.Context) error {
 	booking, err := h.bookingService.CompleteBookingDraft(ctx, userID, timeSlot, userName, "-")
 	if err != nil {
 		if errors.Is(err, domain.ErrTimeSlotTaken) {
+			log.Printf("⚠️ [Web App] Слот занят для userID=%d: %s на %s", userID, table, timeSlot)
 			return c.Send("Этот слот уже занят! Начните бронирование заново.")
 		}
+		log.Printf("❌ [Web App] Ошибка завершения брони для userID=%d: %v", userID, err)
 		return c.Send("Сессия истекла или произошла ошибка. Начните заново.")
 	}
+
+	log.Printf("✅ [Web App] Бронь успешно создана для userID=%d: зал=%s, стол=%s, время=%s",
+		userID, booking.Zone, booking.Table, booking.TimeSlot)
 
 	// Удаляем сообщение с кнопкой Web App
 	_ = h.bot.Delete(c.Message())
