@@ -20,6 +20,10 @@ var (
 	BtnTable = Menu.Data("", "table") // Наша новая кнопка для столов
 	BtnTime  = Menu.Data("", "time")
 
+	// Подтверждение замены брони
+	BtnConfirmReplace = Menu.Data("✅ Да, отменить старую", "confirm_replace")
+	BtnKeepOldBooking = Menu.Data("❌ Нет, оставить", "keep_old")
+
 	// Админка
 	BtnAdminRefresh  = Menu.Data(" Обновить сводку", "admin_refresh")
 	BtnAdminResetAll = Menu.Data(" Сбросить все слоты", "admin_reset_all")
@@ -82,6 +86,15 @@ func BuildContactsMenu() *tele.ReplyMarkup {
 	m.Inline(
 		m.Row(btnMap),
 		m.Row(BtnBackToMain),
+	)
+	return m
+}
+
+func BuildReplaceConfirmMenu() *tele.ReplyMarkup {
+	m := &tele.ReplyMarkup{}
+	m.Inline(
+		m.Row(BtnConfirmReplace),
+		m.Row(BtnKeepOldBooking),
 	)
 	return m
 }

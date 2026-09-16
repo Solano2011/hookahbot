@@ -30,8 +30,20 @@ func (s *BookingSvc) GetUserBooking(ctx context.Context, userID int64) (*domain.
 	return s.repo.GetByUserID(ctx, userID)
 }
 
+func (s *BookingSvc) GetUserDraft(ctx context.Context, userID int64) (*domain.Booking, error) {
+	return s.repo.GetDraftByUserID(ctx, userID)
+}
+
 func (s *BookingSvc) CancelBooking(ctx context.Context, userID int64) error {
 	return s.repo.Delete(ctx, userID)
+}
+
+func (s *BookingSvc) CancelConfirmedBooking(ctx context.Context, userID int64) error {
+	return s.repo.DeleteConfirmed(ctx, userID)
+}
+
+func (s *BookingSvc) CancelDraftBooking(ctx context.Context, userID int64) error {
+	return s.repo.DeleteDraft(ctx, userID)
 }
 
 func (s *BookingSvc) GetAllActiveBookings(ctx context.Context) ([]domain.Booking, error) {

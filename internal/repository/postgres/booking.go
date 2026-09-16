@@ -138,9 +138,40 @@ func (r *BookingRepo) GetByUserID(ctx context.Context, userID int64) (*domain.Bo
 	return &b, nil
 }
 
+func (r *BookingRepo) GetDraftByUserID(ctx context.Context, userID int64) (*domain.Booking, error) {
+	var b domain.Booking
+	// Ищем только черновики
+	err := r.db.Conn.QueryRow(ctx, `
+        SELECT user_id, zone, COALESCE(table_name, ''), COALESCE(time_slot, ''), COALESCE(user_name, ''), COALESCE(phone, ''), COALESCE(created_at, NOW())
+        FROM bookings
+        WHERE user_id = $1 AND status = 'draft'
+        ORDER BY created_at DESC LIMIT 1`,
+		userID,
+	).Scan(&b.UserID, &b.Zone, &b.Table, &b.TimeSlot, &b.UserName, &b.Phone, &b.CreatedAt)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrBookingNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
 func (r *BookingRepo) Delete(ctx context.Context, userID int64) error {
 	// Удаляем все записи пользователя (и черновики, и готовые)
 	_, err := r.db.Conn.Exec(ctx, `DELETE FROM bookings WHERE user_id = $1`, userID)
+	return err
+}
+
+func (r *BookingRepo) DeleteConfirmed(ctx context.Context, userID int64) error {
+	// Удаляем только подтвержденные брони
+	_, err := r.db.Conn.Exec(ctx, `DELETE FROM bookings WHERE user_id = $1 AND status = 'confirmed'`, userID)
+	return err
+}
+
+func (r *BookingRepo) DeleteDraft(ctx context.Context, userID int64) error {
+	// Удаляем только черновики
+	_, err := r.db.Conn.Exec(ctx, `DELETE FROM bookings WHERE user_id = $1 AND status = 'draft'`, userID)
 	return err
 }
 

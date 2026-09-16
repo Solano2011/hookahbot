@@ -14,7 +14,10 @@ type mockBookingRepo struct {
 	setTableFunc        func(ctx context.Context, userID int64, table string) error
 	completeBookingFunc func(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*domain.Booking, error)
 	getByUserIDFunc     func(ctx context.Context, userID int64) (*domain.Booking, error)
+	getDraftByUserIDFunc func(ctx context.Context, userID int64) (*domain.Booking, error)
 	deleteFunc          func(ctx context.Context, userID int64) error
+	deleteConfirmedFunc func(ctx context.Context, userID int64) error
+	deleteDraftFunc     func(ctx context.Context, userID int64) error
 	getAllActiveFunc    func(ctx context.Context) ([]domain.Booking, error)
 	resetAllFunc        func(ctx context.Context) error
 }
@@ -47,9 +50,30 @@ func (m *mockBookingRepo) GetByUserID(ctx context.Context, userID int64) (*domai
 	return nil, nil
 }
 
+func (m *mockBookingRepo) GetDraftByUserID(ctx context.Context, userID int64) (*domain.Booking, error) {
+	if m.getDraftByUserIDFunc != nil {
+		return m.getDraftByUserIDFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
 func (m *mockBookingRepo) Delete(ctx context.Context, userID int64) error {
 	if m.deleteFunc != nil {
 		return m.deleteFunc(ctx, userID)
+	}
+	return nil
+}
+
+func (m *mockBookingRepo) DeleteConfirmed(ctx context.Context, userID int64) error {
+	if m.deleteConfirmedFunc != nil {
+		return m.deleteConfirmedFunc(ctx, userID)
+	}
+	return nil
+}
+
+func (m *mockBookingRepo) DeleteDraft(ctx context.Context, userID int64) error {
+	if m.deleteDraftFunc != nil {
+		return m.deleteDraftFunc(ctx, userID)
 	}
 	return nil
 }

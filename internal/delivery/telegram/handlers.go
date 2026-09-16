@@ -43,6 +43,10 @@ func (h *Handlers) InitRoutes(b *tele.Bot) {
 	b.Handle(&BtnZone, h.handleZoneSelect)
 	b.Handle(&BtnTime, h.handleTimeSelect)
 
+	// Подтверждение замены брони
+	b.Handle(&BtnConfirmReplace, h.handleConfirmReplace)
+	b.Handle(&BtnKeepOldBooking, h.handleKeepOldBooking)
+
 	// Обработчик данных из Web App
 	b.Handle(tele.OnWebApp, h.handleWebApp)
 
@@ -88,6 +92,26 @@ func (h *Handlers) handleBookBtn(c tele.Context) error {
 func (h *Handlers) handleZoneSelect(c tele.Context) error {
 	zone := c.Data()
 	ctx := context.Background()
+
+	// Проверяем, есть ли уже активная бронь
+	existingBooking, err := h.bookingService.GetUserBooking(ctx, c.Sender().ID)
+	if err == nil && existingBooking.TimeSlot != "" {
+		// У пользователя уже есть активная бронь
+		_ = c.Delete()
+		text := fmt.Sprintf(
+			"⚠️ *У вас уже есть активная бронь:*\n\n"+
+				"📍 Зал: `%s`\n"+
+				"🪑 Стол: `%s`\n"+
+				"⏰ Время: `%s`\n\n"+
+				"Хотите отменить предыдущую бронь и создать новую?",
+			existingBooking.Zone, existingBooking.Table, existingBooking.TimeSlot,
+		)
+
+		// Сохраняем выбранную зону в черновик для последующего использования
+		_ = h.bookingService.StartBookingDraft(ctx, c.Sender().ID, zone)
+
+		return c.Send(text, BuildReplaceConfirmMenu(), tele.ModeMarkdown)
+	}
 
 	if err := h.bookingService.StartBookingDraft(ctx, c.Sender().ID, zone); err != nil {
 		return c.Send("Ошибка сохранения. Попробуйте еще раз.")
@@ -263,6 +287,56 @@ func (h *Handlers) handleContactsBtn(c tele.Context) error {
 	_ = c.Delete()
 	text := " *Smoke Lounge Central*\n\n *Адрес:* ул. Центральная, д. 15\n *Телефон:* `+7 (999) 000-00-00`"
 	return c.Send(text, BuildContactsMenu(), tele.ModeMarkdown)
+}
+
+func (h *Handlers) handleConfirmReplace(c tele.Context) error {
+	ctx := context.Background()
+	userID := c.Sender().ID
+
+	// Удаляем старую подтвержденную бронь
+	_ = h.bookingService.CancelConfirmedBooking(ctx, userID)
+
+	// Получаем черновик с новой зоной
+	draft, err := h.bookingService.GetUserDraft(ctx, userID)
+	if err != nil {
+		_ = c.Delete()
+		return c.Send("Ошибка при получении черновика. Начните бронирование заново.", BuildMainMenu())
+	}
+
+	_ = c.Delete()
+
+	// Если зона "Общий лаунж", показываем Web App
+	if draft.Zone == "Общий лаунж" {
+		m := &tele.ReplyMarkup{}
+		baseURL := "https://hookah-test.ru/"
+
+		btnBook := m.WebApp("Забронировать стол", &tele.WebApp{URL: baseURL})
+		btnMenu := m.WebApp("Меню & Табачная карта", &tele.WebApp{URL: baseURL + "/?start=menu"})
+
+		m.Inline(
+			m.Row(btnBook),
+			m.Row(btnMenu, BtnMyBooking),
+			m.Row(BtnContacts),
+		)
+
+		return c.Send("Главное меню SMOKE LOUNGE:", m)
+	}
+
+	// Для VIP и PS5 стол один
+	_ = h.bookingService.SetBookingTable(ctx, userID, "Основной")
+	text := fmt.Sprintf("✅ *Предыдущая бронь отменена*\n\n *Шаг 2 из 2: Выберите время*\n\nВыбранный зал: `%s`", draft.Zone)
+	return c.Send(text, BuildTimeMenu(), tele.ModeMarkdown)
+}
+
+func (h *Handlers) handleKeepOldBooking(c tele.Context) error {
+	ctx := context.Background()
+	userID := c.Sender().ID
+
+	// Удаляем только черновик новой брони, оставляем подтвержденную
+	_ = h.bookingService.CancelDraftBooking(ctx, userID)
+
+	_ = c.Delete()
+	return c.Send("✅ Ваша текущая бронь сохранена.", BuildMainMenu())
 }
 
 func (h *Handlers) renderAdminDashboard(ctx context.Context) (string, error) {

@@ -74,11 +74,45 @@ func (r *BookingRepo) GetByUserID(ctx context.Context, userID int64) (*domain.Bo
 	return b, nil
 }
 
+func (r *BookingRepo) GetDraftByUserID(ctx context.Context, userID int64) (*domain.Booking, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	b, exists := r.drafts[userID]
+	if !exists || b.TimeSlot != "" {
+		return nil, domain.ErrBookingNotFound
+	}
+	return b, nil
+}
+
 func (r *BookingRepo) Delete(ctx context.Context, userID int64) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	delete(r.drafts, userID)
+	return nil
+}
+
+func (r *BookingRepo) DeleteConfirmed(ctx context.Context, userID int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// В memory репозитории нет различия между draft и confirmed по статусу
+	// Считаем confirmed те, у которых есть TimeSlot
+	if b, exists := r.drafts[userID]; exists && b.TimeSlot != "" {
+		delete(r.drafts, userID)
+	}
+	return nil
+}
+
+func (r *BookingRepo) DeleteDraft(ctx context.Context, userID int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Удаляем только если это черновик (нет TimeSlot)
+	if b, exists := r.drafts[userID]; exists && b.TimeSlot == "" {
+		delete(r.drafts, userID)
+	}
 	return nil
 }
 

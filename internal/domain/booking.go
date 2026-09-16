@@ -27,7 +27,10 @@ type BookingRepository interface {
 	SetTable(ctx context.Context, userID int64, table string) error
 	CompleteBooking(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*Booking, error) // <-- Добавили name и phone
 	GetByUserID(ctx context.Context, userID int64) (*Booking, error)
+	GetDraftByUserID(ctx context.Context, userID int64) (*Booking, error) // Получение черновика
 	Delete(ctx context.Context, userID int64) error
+	DeleteConfirmed(ctx context.Context, userID int64) error // Удаление только подтвержденных броней
+	DeleteDraft(ctx context.Context, userID int64) error     // Удаление только черновиков
 	GetAllActive(ctx context.Context) ([]Booking, error)
 	ResetAll(ctx context.Context) error
 }
@@ -37,7 +40,10 @@ type BookingService interface {
 	SetBookingTable(ctx context.Context, userID int64, table string) error
 	CompleteBookingDraft(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*Booking, error)
 	GetUserBooking(ctx context.Context, userID int64) (*Booking, error)
+	GetUserDraft(ctx context.Context, userID int64) (*Booking, error)
 	CancelBooking(ctx context.Context, userID int64) error
+	CancelConfirmedBooking(ctx context.Context, userID int64) error
+	CancelDraftBooking(ctx context.Context, userID int64) error
 	GetAllActiveBookings(ctx context.Context) ([]Booking, error)
 	ResetAllBookings(ctx context.Context) error
 }
