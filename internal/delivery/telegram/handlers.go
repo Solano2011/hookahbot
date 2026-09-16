@@ -22,16 +22,15 @@ type Handlers struct {
 	bot            *tele.Bot
 }
 
-func NewHandlers(bs domain.BookingService, adminID int64) *Handlers {
+func NewHandlers(bs domain.BookingService, adminID int64, bot *tele.Bot) *Handlers {
 	return &Handlers{
 		bookingService: bs,
 		adminID:        adminID,
+		bot:            bot,
 	}
 }
 
 func (h *Handlers) InitRoutes(b *tele.Bot) {
-	h.bot = b
-
 	b.Handle("/start", h.handleStart)
 	b.Handle("/admin", h.handleAdmin)
 
@@ -57,6 +56,7 @@ func (h *Handlers) InitRoutes(b *tele.Bot) {
 	b.Handle("/admin", h.handleAdminCommand)
 	b.Handle("\fadmin_all", h.handleAdminAll)
 	b.Handle("\fadmin_clear", h.handleAdminClear)
+
 }
 
 func (h *Handlers) isAdmin(userID int64) bool {
@@ -324,59 +324,6 @@ func (h *Handlers) handleContactsBtn(c tele.Context) error {
 	return c.Send(text, BuildContactsMenu(), tele.ModeMarkdown)
 }
 
-func (h *Handlers) handleConfirmReplace(c tele.Context) error {
-	ctx := context.Background()
-	userID := c.Sender().ID
-
-	// Удаляем старую подтвержденную бронь
-	if err := h.bookingService.CancelConfirmedBooking(ctx, userID); err != nil {
-		_ = c.Delete()
-		return c.Send("⚠️ Ошибка при отмене старой брони. Попробуйте позже.", BuildMainMenu())
-	}
-
-	// Получаем черновик с новой зоной
-	draft, err := h.bookingService.GetUserDraft(ctx, userID)
-	if err != nil {
-		_ = c.Delete()
-		return c.Send("Ошибка при получении черновика. Начните бронирование заново.", BuildMainMenu())
-	}
-
-	_ = c.Delete()
-
-	// Если зона "Общий лаунж", показываем Web App
-	if draft.Zone == "Общий лаунж" {
-		m := &tele.ReplyMarkup{}
-		baseURL := "https://hookah-test.ru/"
-
-		btnBook := m.WebApp("Забронировать стол", &tele.WebApp{URL: baseURL})
-		btnMenu := m.WebApp("Меню & Табачная карта", &tele.WebApp{URL: baseURL + "/?start=menu"})
-
-		m.Inline(
-			m.Row(btnBook),
-			m.Row(btnMenu, BtnMyBooking),
-			m.Row(BtnContacts),
-		)
-
-		return c.Send("Главное меню SMOKE LOUNGE:", m)
-	}
-
-	// Для VIP и PS5 стол один
-	_ = h.bookingService.SetBookingTable(ctx, userID, "Основной")
-	text := fmt.Sprintf("✅ *Предыдущая бронь отменена*\n\n *Шаг 2 из 2: Выберите время*\n\nВыбранный зал: `%s`", draft.Zone)
-	return c.Send(text, BuildTimeMenu(), tele.ModeMarkdown)
-}
-
-func (h *Handlers) handleKeepOldBooking(c tele.Context) error {
-	ctx := context.Background()
-	userID := c.Sender().ID
-
-	// Удаляем только черновик новой брони, оставляем подтвержденную
-	_ = h.bookingService.CancelDraftBooking(ctx, userID)
-
-	_ = c.Delete()
-	return c.Send("✅ Ваша текущая бронь сохранена.", BuildMainMenu())
-}
-
 func (h *Handlers) renderAdminDashboard(ctx context.Context) (string, error) {
 	bookings, err := h.bookingService.GetAllActiveBookings(ctx)
 	if err != nil {
@@ -468,4 +415,67 @@ func (h *Handlers) handleAdminClear(c tele.Context) error {
 	}
 
 	return c.Edit("✅ *База успешно очищена!*\n\nВсе столы снова свободны. (Идеально для начала нового рабочего дня)", tele.ModeMarkdown)
+}
+
+// --- ОБРАБОТКА ЗАМЕНЫ БРОНИ ---
+
+func (h *Handlers) handleConfirmReplace(c tele.Context) error {
+	ctx := context.Background()
+	userID := c.Sender().ID
+
+	// 1. Отменяем старую подтвержденную бронь
+	err := h.bookingService.CancelConfirmedBooking(ctx, userID)
+	if err != nil {
+		log.Printf("❌ Ошибка отмены старой брони для userID=%d: %v", userID, err)
+		return c.Send("❌ Произошла ошибка при отмене старой брони. Обратитесь к администратору.")
+	}
+
+	// 2. Получаем черновик, чтобы извлечь данные
+	draft, err := h.bookingService.GetUserDraft(ctx, userID)
+	if err != nil {
+		log.Printf("❌ Ошибка получения черновика для userID=%d: %v", userID, err)
+		return c.Send("❌ Произошла ошибка при получении черновика. Попробуйте оформить бронь заново.")
+	}
+
+	// 3. Финализируем новую бронь из черновика с данными из него
+	booking, err := h.bookingService.CompleteBookingDraft(ctx, userID, draft.TimeSlot, draft.UserName, draft.Phone)
+	if err != nil {
+		log.Printf("❌ Ошибка завершения новой брони (черновика) для userID=%d: %v", userID, err)
+		return c.Send("❌ Произошла ошибка при создании новой брони. Попробуйте оформить ее заново.")
+	}
+
+	log.Printf("✅ Бронь успешно заменена для userID=%d", userID)
+
+	// 3. Уведомляем администратора
+	if h.adminID != 0 && h.bot != nil {
+		notifyText := fmt.Sprintf(
+			"🔔 *НОВАЯ БРОНЬ В СИСТЕМЕ (ЗАМЕНА)*\n"+
+				"━━━━━━━━━━━━━━━\n"+
+				"👤 *Имя:* %s\n"+
+				"📞 *Телефон:* %s\n"+
+				"🆔 Гость ID: `%d`\n"+
+				"📍 Зал: *%s* | Стол: *%s*\n"+
+				"⏰ Время: *%s*",
+			booking.UserName, booking.Phone, userID, booking.Zone, booking.Table, booking.TimeSlot,
+		)
+		go func(msg string) { _, _ = h.bot.Send(tele.ChatID(h.adminID), msg, tele.ModeMarkdown) }(notifyText)
+	}
+
+	// 4. Редактируем сообщение пользователя, чтобы убрать инлайн-кнопки и показать успех
+	text := fmt.Sprintf(
+		"✅ *Бронь успешно заменена!*\n"+
+			"━━━━━━━━━━━━━━━\n"+
+			"📍 Зал: `%s` | Стол: `%s`\n"+
+			"⏰ Время: `%s`\n"+
+			"✨ Статус: *Подтверждено*\n\n"+
+			"Ждем вас в гости!",
+		booking.Zone, booking.Table, booking.TimeSlot,
+	)
+
+	return c.EditOrSend(text, tele.ModeMarkdown)
+}
+
+func (h *Handlers) handleKeepOldBooking(c tele.Context) error {
+	// Пользователь передумал менять бронь.
+	return c.EditOrSend("👌 Вы отменили замену. Ваша старая бронь остается в силе!", tele.ModeMarkdown)
 }

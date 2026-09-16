@@ -33,7 +33,7 @@ func Run(token string, adminID int64, db *postgres.DB) {
 	repo := postgres.NewBookingRepo(db)
 
 	bookingService := service.NewBookingService(repo)
-	handlers := telegram.NewHandlers(bookingService, adminID)
+	handlers := telegram.NewHandlers(bookingService, adminID, b)
 	handlers.InitRoutes(b)
 
 	log.Printf("Бот @%s успешно запущен! Admin ID: %d", b.Me.Username, adminID)
@@ -117,21 +117,60 @@ func Run(token string, adminID int64, db *postgres.DB) {
 
 			log.Printf("🌐 [HTTP API] Получен запрос на бронь от userID=%d: стол=%s, время=%s", data.UserID, data.Table, data.Time)
 
-			// ВАЖНО: Проверяем и удаляем все старые подтвержденные брони перед созданием новой
+			// --- НОВАЯ ЛОГИКА ЗАМЕНЫ БРОНИ ---
 			existingBooking, err := bookingService.GetUserBooking(ctx, data.UserID)
 			if err == nil && existingBooking.TimeSlot != "" {
 				log.Printf("⚠️ [HTTP API] У userID=%d найдена существующая бронь: зал=%s, стол=%s, время=%s",
 					data.UserID, existingBooking.Zone, existingBooking.Table, existingBooking.TimeSlot)
 
-				if err := bookingService.CancelConfirmedBooking(ctx, data.UserID); err != nil {
-					log.Printf("❌ [HTTP API] Ошибка удаления старой брони для userID=%d: %v", data.UserID, err)
-					http.Error(w, "Failed to cancel old booking", http.StatusInternalServerError)
+				// НЕ удаляем бронь, а сохраняем новые данные в черновик
+				if err := bookingService.StartBookingDraft(ctx, data.UserID, "Общий лаунж"); err != nil {
+					log.Printf("❌ [HTTP API] Ошибка создания черновика для userID=%d: %v", data.UserID, err)
+					http.Error(w, "Failed to create booking draft", http.StatusInternalServerError)
 					return
 				}
-				log.Printf("✅ [HTTP API] Старая бронь userID=%d успешно удалена", data.UserID)
-			} else {
-				log.Printf("ℹ️ [HTTP API] У userID=%d нет существующих броней", data.UserID)
+
+				if err := bookingService.SetBookingTable(ctx, data.UserID, data.Table); err != nil {
+					log.Printf("❌ [HTTP API] Ошибка сохранения стола в черновик для userID=%d: %v", data.UserID, err)
+					http.Error(w, "Failed to save table to draft", http.StatusInternalServerError)
+					return
+				}
+
+				if err := bookingService.SetDraftTimeAndContacts(ctx, data.UserID, data.Time, data.Name, data.Phone); err != nil {
+					log.Printf("❌ [HTTP API] Ошибка сохранения времени и контактов в черновик для userID=%d: %v", data.UserID, err)
+					http.Error(w, "Failed to save time and contacts to draft", http.StatusInternalServerError)
+					return
+				}
+
+				log.Printf("✅ [HTTP API] Черновик сохранён для userID=%d, ожидаем подтверждения", data.UserID)
+
+				// Отправляем пользователю сообщение с выбором в Telegram
+				user := &tele.User{ID: data.UserID}
+				text := fmt.Sprintf(
+					"⚠️ *У вас уже есть активная бронь:*\n\n"+
+						"📍 Зал: `%s`\n"+
+						"🪑 Стол: `%s`\n"+
+						"⏰ Время: `%s`\n\n"+
+						"Хотите отменить предыдущую бронь и создать новую на `%s` в `%s`?",
+					existingBooking.Zone, existingBooking.Table, existingBooking.TimeSlot,
+					data.Table, data.Time,
+				)
+
+				_, sendErr := b.Send(user, text, telegram.BuildReplaceConfirmMenu(), tele.ModeMarkdown)
+				if sendErr != nil {
+					log.Printf("⚠️ Ошибка при отправке сообщения выбора для userID=%d: %v", data.UserID, sendErr)
+				}
+
+				// Возвращаем статус фронтенду Web App, чтобы он понял, что нужно ждать подтверждения
+				w.WriteHeader(http.StatusOK)
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]string{"status": "pending_confirmation"})
+				return
 			}
+
+			log.Printf("ℹ️ [HTTP API] У userID=%d нет существующих броней, создаем новую", data.UserID)
+
+			// --- СТАНДАРТНАЯ ЛОГИКА (ЕСЛИ СТАРОЙ БРОНИ НЕТ) ---
 
 			// 0. СОЗДАЕМ ЧЕРНОВИК НА ЛЕТУ
 			if err := bookingService.StartBookingDraft(ctx, data.UserID, "Общий лаунж"); err != nil {

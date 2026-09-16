@@ -21,6 +21,10 @@ func (s *BookingSvc) SetBookingTable(ctx context.Context, userID int64, table st
 	return s.repo.SetTable(ctx, userID, table)
 }
 
+func (s *BookingSvc) SetDraftTimeAndContacts(ctx context.Context, userID int64, timeSlot string, name string, phone string) error {
+	return s.repo.SetDraftTimeAndContacts(ctx, userID, timeSlot, name, phone)
+}
+
 // Добавили name и phone в параметры
 func (s *BookingSvc) CompleteBookingDraft(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*domain.Booking, error) {
 	return s.repo.CompleteBooking(ctx, userID, timeSlot, name, phone)

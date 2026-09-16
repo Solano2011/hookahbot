@@ -47,9 +47,27 @@ func (r *BookingRepo) SaveDraft(ctx context.Context, userID int64, zone string) 
 func (r *BookingRepo) SetTable(ctx context.Context, userID int64, table string) error {
 	// Обновляем стол только у черновика
 	cmdTag, err := r.db.Conn.Exec(ctx, `
-        UPDATE bookings SET table_name = $1 
+        UPDATE bookings SET table_name = $1
         WHERE user_id = $2 AND status = 'draft'`,
 		table, userID,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Если ни одна строка не обновилась, значит черновика нет
+	if cmdTag.RowsAffected() == 0 {
+		return domain.ErrBookingNotFound
+	}
+	return nil
+}
+
+func (r *BookingRepo) SetDraftTimeAndContacts(ctx context.Context, userID int64, timeSlot string, name string, phone string) error {
+	// Обновляем время и контакты в черновике (без изменения статуса)
+	cmdTag, err := r.db.Conn.Exec(ctx, `
+        UPDATE bookings SET time_slot = $1, user_name = $2, phone = $3
+        WHERE user_id = $4 AND status = 'draft'`,
+		timeSlot, name, phone, userID,
 	)
 	if err != nil {
 		return err

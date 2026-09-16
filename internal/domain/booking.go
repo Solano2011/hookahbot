@@ -25,12 +25,13 @@ type Booking struct {
 type BookingRepository interface {
 	SaveDraft(ctx context.Context, userID int64, zone string) error
 	SetTable(ctx context.Context, userID int64, table string) error
-	CompleteBooking(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*Booking, error) // <-- Добавили name и phone
+	SetDraftTimeAndContacts(ctx context.Context, userID int64, timeSlot string, name string, phone string) error // Новый метод
+	CompleteBooking(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*Booking, error)
 	GetByUserID(ctx context.Context, userID int64) (*Booking, error)
-	GetDraftByUserID(ctx context.Context, userID int64) (*Booking, error) // Получение черновика
+	GetDraftByUserID(ctx context.Context, userID int64) (*Booking, error)
 	Delete(ctx context.Context, userID int64) error
-	DeleteConfirmed(ctx context.Context, userID int64) error // Удаление только подтвержденных броней
-	DeleteDraft(ctx context.Context, userID int64) error     // Удаление только черновиков
+	DeleteConfirmed(ctx context.Context, userID int64) error
+	DeleteDraft(ctx context.Context, userID int64) error
 	GetAllActive(ctx context.Context) ([]Booking, error)
 	ResetAll(ctx context.Context) error
 }
@@ -38,6 +39,7 @@ type BookingRepository interface {
 type BookingService interface {
 	StartBookingDraft(ctx context.Context, userID int64, zone string) error
 	SetBookingTable(ctx context.Context, userID int64, table string) error
+	SetDraftTimeAndContacts(ctx context.Context, userID int64, timeSlot string, name string, phone string) error // Новый метод
 	CompleteBookingDraft(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*Booking, error)
 	GetUserBooking(ctx context.Context, userID int64) (*Booking, error)
 	GetUserDraft(ctx context.Context, userID int64) (*Booking, error)

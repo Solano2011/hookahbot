@@ -41,6 +41,20 @@ func (r *BookingRepo) SetTable(ctx context.Context, userID int64, table string) 
 	return nil
 }
 
+func (r *BookingRepo) SetDraftTimeAndContacts(ctx context.Context, userID int64, timeSlot string, name string, phone string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	b, exists := r.drafts[userID]
+	if !exists {
+		return domain.ErrBookingNotFound
+	}
+	b.TimeSlot = timeSlot
+	b.UserName = name
+	b.Phone = phone
+	return nil
+}
+
 func (r *BookingRepo) CompleteBooking(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*domain.Booking, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
