@@ -103,9 +103,10 @@ func (h *Handlers) handleZoneSelect(c tele.Context) error {
 			"⚠️ *У вас уже есть активная бронь:*\n\n"+
 				"📍 Зал: `%s`\n"+
 				"🪑 Стол: `%s`\n"+
+				"📅 Дата: `%s`\n"+
 				"⏰ Время: `%s`\n\n"+
 				"Хотите отменить предыдущую бронь и создать новую?",
-			existingBooking.Zone, existingBooking.Table, existingBooking.TimeSlot,
+			existingBooking.Zone, existingBooking.Table, existingBooking.Date, existingBooking.TimeSlot,
 		)
 
 		// Сохраняем выбранную зону в черновик для последующего использования
@@ -222,8 +223,9 @@ func (h *Handlers) handleWebApp(c tele.Context) error {
 				"━━━━━━━━━━━━━━━\n"+
 				" Гость: *%s* (%s)\n"+
 				" Зал: *%s* | *%s*\n"+
+				" Дата: *%s*\n"+
 				" Время: *%s*",
-			user.FirstName, usernameStr, booking.Zone, booking.Table, booking.TimeSlot,
+			user.FirstName, usernameStr, booking.Zone, booking.Table, booking.Date, booking.TimeSlot,
 		)
 		go func(msg string) { _, _ = h.bot.Send(tele.ChatID(h.adminID), msg, tele.ModeMarkdown) }(notifyText)
 	}
@@ -233,10 +235,11 @@ func (h *Handlers) handleWebApp(c tele.Context) error {
 		" *Бронь успешно подтверждена!*\n"+
 			"━━━━━━━━━━━━━━━\n"+
 			" Зал: `%s` | Стол: `%s`\n"+
+			" Дата: `%s`\n"+
 			" Время: `%s`\n"+
 			" Статус: *Подтверждено*\n\n"+
 			"Ждем вас в гости!",
-		booking.Zone, booking.Table, booking.TimeSlot,
+		booking.Zone, booking.Table, booking.Date, booking.TimeSlot,
 	)
 
 	return c.Send(text, BuildMainMenu(), tele.ModeMarkdown)
@@ -270,8 +273,9 @@ func (h *Handlers) handleTimeSelect(c tele.Context) error {
 				"━━━━━━━━━━━━━━━\n"+
 				" Гость: *%s* (%s)\n"+
 				" Зал: *%s* | *%s*\n"+
+				" Дата: *%s*\n"+
 				" Время: *%s*",
-			user.FirstName, usernameStr, booking.Zone, booking.Table, booking.TimeSlot,
+			user.FirstName, usernameStr, booking.Zone, booking.Table, booking.Date, booking.TimeSlot,
 		)
 		go func(msg string) { _, _ = h.bot.Send(tele.ChatID(h.adminID), msg, tele.ModeMarkdown) }(notifyText)
 	}
@@ -281,10 +285,11 @@ func (h *Handlers) handleTimeSelect(c tele.Context) error {
 		" *Бронь успешно подтверждена!*\n"+
 			"━━━━━━━━━━━━━━━\n"+
 			" Зал: `%s` | Стол: `%s`\n"+
+			" Дата: `%s`\n"+
 			" Время: `%s`\n"+
 			" Статус: *Подтверждено*\n\n"+
 			"Ждем вас в гости!",
-		booking.Zone, booking.Table, booking.TimeSlot,
+		booking.Zone, booking.Table, booking.Date, booking.TimeSlot,
 	)
 
 	return c.Send(text, BuildMainMenu(), tele.ModeMarkdown)
@@ -305,8 +310,8 @@ func (h *Handlers) handleMyBookingBtn(c tele.Context) error {
 	m.Inline(m.Row(BtnCancelBooking), m.Row(BtnBackToMain))
 
 	text := fmt.Sprintf(
-		" *Ваша бронь:*\n━━━━━━━━━━━━━━━\n Зал: `%s` | Стол: `%s`\n Время: `%s`\n",
-		b.Zone, b.Table, b.TimeSlot,
+		" *Ваша бронь:*\n━━━━━━━━━━━━━━━\n Зал: `%s` | Стол: `%s`\n Дата: `%s`\n Время: `%s`\n",
+		b.Zone, b.Table, b.Date, b.TimeSlot,
 	)
 	return c.Send(text, m, tele.ModeMarkdown)
 }
@@ -333,9 +338,9 @@ func (h *Handlers) renderAdminDashboard(ctx context.Context) (string, error) {
 		return " *Панель администратора*\n\n На сегодня активных броней нет.", nil
 	}
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(" *Панель администратора*\nВсего активных броней: *%d*\n━━━━━━━━━━━━━━━\n", len(bookings)))
+	fmt.Fprintf(&sb, " *Панель администратора*\nВсего активных броней: *%d*\n━━━━━━━━━━━━━━━\n", len(bookings))
 	for i, b := range bookings {
-		sb.WriteString(fmt.Sprintf("*%d.* `%s` | *%s* - *%s* (Гость: `%d`)\n", i+1, b.TimeSlot, b.Zone, b.Table, b.UserID))
+		fmt.Fprintf(&sb, "*%d.* `%s` | `%s` | *%s* - *%s* (Гость: `%d`)\n", i+1, b.Date, b.TimeSlot, b.Zone, b.Table, b.UserID)
 	}
 	return sb.String(), nil
 }
@@ -397,13 +402,14 @@ func (h *Handlers) handleAdminAll(c tele.Context) error {
 		return c.Edit("База пуста. Пока никто не забронировал столик 🥲")
 	}
 
-	text := "📋 *Список текущих броней:*\n\n"
+	var sb strings.Builder
+	sb.WriteString("📋 *Список текущих броней:*\n\n")
 	for _, b := range bookings {
-		text += fmt.Sprintf("👤 *Имя:* %s\n📞 *Телефон:* %s\n🆔 ID Гостя: `%d`\n📍 Зал: %s\n🪑 Стол: %s\n⏰ Время: %s\n〰️〰️〰️〰️\n",
-			b.UserName, b.Phone, b.UserID, b.Zone, b.Table, b.TimeSlot)
+		fmt.Fprintf(&sb, "👤 *Имя:* %s\n📞 *Телефон:* %s\n🆔 ID Гостя: `%d`\n📍 Зал: %s\n🪑 Стол: %s\n📅 Дата: %s\n⏰ Время: %s\n〰️〰️〰️〰️\n",
+			b.UserName, b.Phone, b.UserID, b.Zone, b.Table, b.Date, b.TimeSlot)
 	}
 
-	return c.Edit(text, tele.ModeMarkdown)
+	return c.Edit(sb.String(), tele.ModeMarkdown)
 }
 
 // 3. Обработчик очистки базы
@@ -455,8 +461,9 @@ func (h *Handlers) handleConfirmReplace(c tele.Context) error {
 				"📞 *Телефон:* %s\n"+
 				"🆔 Гость ID: `%d`\n"+
 				"📍 Зал: *%s* | Стол: *%s*\n"+
+				"📅 Дата: *%s*\n"+
 				"⏰ Время: *%s*",
-			booking.UserName, booking.Phone, userID, booking.Zone, booking.Table, booking.TimeSlot,
+			booking.UserName, booking.Phone, userID, booking.Zone, booking.Table, booking.Date, booking.TimeSlot,
 		)
 		go func(msg string) { _, _ = h.bot.Send(tele.ChatID(h.adminID), msg, tele.ModeMarkdown) }(notifyText)
 	}
@@ -466,10 +473,11 @@ func (h *Handlers) handleConfirmReplace(c tele.Context) error {
 		"✅ *Бронь успешно заменена!*\n"+
 			"━━━━━━━━━━━━━━━\n"+
 			"📍 Зал: `%s` | Стол: `%s`\n"+
+			"📅 Дата: `%s`\n"+
 			"⏰ Время: `%s`\n"+
 			"✨ Статус: *Подтверждено*\n\n"+
 			"Ждем вас в гости!",
-		booking.Zone, booking.Table, booking.TimeSlot,
+		booking.Zone, booking.Table, booking.Date, booking.TimeSlot,
 	)
 
 	return c.EditOrSend(text, tele.ModeMarkdown)

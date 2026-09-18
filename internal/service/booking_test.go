@@ -10,17 +10,19 @@ import (
 )
 
 type mockBookingRepo struct {
-	saveDraftFunc              func(ctx context.Context, userID int64, zone string) error
-	setTableFunc               func(ctx context.Context, userID int64, table string) error
+	saveDraftFunc               func(ctx context.Context, userID int64, zone string) error
+	setTableFunc                func(ctx context.Context, userID int64, table string) error
+	setDraftDateFunc            func(ctx context.Context, userID int64, date string) error
 	setDraftTimeAndContactsFunc func(ctx context.Context, userID int64, timeSlot string, name string, phone string) error
-	completeBookingFunc        func(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*domain.Booking, error)
-	getByUserIDFunc            func(ctx context.Context, userID int64) (*domain.Booking, error)
-	getDraftByUserIDFunc       func(ctx context.Context, userID int64) (*domain.Booking, error)
-	deleteFunc                 func(ctx context.Context, userID int64) error
-	deleteConfirmedFunc        func(ctx context.Context, userID int64) error
-	deleteDraftFunc            func(ctx context.Context, userID int64) error
-	getAllActiveFunc           func(ctx context.Context) ([]domain.Booking, error)
-	resetAllFunc               func(ctx context.Context) error
+	completeBookingFunc         func(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*domain.Booking, error)
+	getByUserIDFunc             func(ctx context.Context, userID int64) (*domain.Booking, error)
+	getDraftByUserIDFunc        func(ctx context.Context, userID int64) (*domain.Booking, error)
+	deleteFunc                  func(ctx context.Context, userID int64) error
+	deleteConfirmedFunc         func(ctx context.Context, userID int64) error
+	deleteDraftFunc             func(ctx context.Context, userID int64) error
+	getAllActiveFunc            func(ctx context.Context) ([]domain.Booking, error)
+	getTakenTimeSlotsFunc       func(ctx context.Context, date string) (map[string][]string, error)
+	resetAllFunc                func(ctx context.Context) error
 }
 
 func (m *mockBookingRepo) SaveDraft(ctx context.Context, userID int64, zone string) error {
@@ -33,6 +35,13 @@ func (m *mockBookingRepo) SaveDraft(ctx context.Context, userID int64, zone stri
 func (m *mockBookingRepo) SetTable(ctx context.Context, userID int64, table string) error {
 	if m.setTableFunc != nil {
 		return m.setTableFunc(ctx, userID, table)
+	}
+	return nil
+}
+
+func (m *mockBookingRepo) SetDraftDate(ctx context.Context, userID int64, date string) error {
+	if m.setDraftDateFunc != nil {
+		return m.setDraftDateFunc(ctx, userID, date)
 	}
 	return nil
 }
@@ -98,6 +107,13 @@ func (m *mockBookingRepo) ResetAll(ctx context.Context) error {
 		return m.resetAllFunc(ctx)
 	}
 	return nil
+}
+
+func (m *mockBookingRepo) GetTakenTimeSlots(ctx context.Context, date string) (map[string][]string, error) {
+	if m.getTakenTimeSlotsFunc != nil {
+		return m.getTakenTimeSlotsFunc(ctx, date)
+	}
+	return nil, nil
 }
 
 func TestBookingSvc_StartBookingDraft(t *testing.T) {

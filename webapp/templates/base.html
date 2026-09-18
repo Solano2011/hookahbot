@@ -55,6 +55,18 @@
         .table-group.selected { transform: scale(1.15); z-index: 10; }
         .table-core.selected { background-color: #007aff !important; border-color: #007aff !important; box-shadow: 0 0 15px rgba(0, 122, 255, 0.8) !important; color: white !important; }
         
+        /* ВЫБОР ДАТЫ */
+        .date-picker { display: none; margin-top: 20px; width: 100%; animation: fadeIn 0.3s ease; }
+        .date-picker.active { display: block; }
+        .date-picker h3 { margin: 0 0 12px 0; font-size: 16px; text-align: center; color: #e5b582; }
+        .date-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0; scrollbar-width: none; -ms-overflow-style: none; }
+        .date-scroll::-webkit-scrollbar { display: none; }
+        .date-chip { min-width: 90px; padding: 12px 8px; background-color: #2c2c2e; border: 2px solid #3a3a3c; border-radius: 8px; color: white; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s; text-align: center; display: flex; flex-direction: column; gap: 4px; }
+        .date-chip .date-day { font-size: 11px; color: #888; }
+        .date-chip .date-num { font-size: 16px; }
+        .date-chip.selected { background-color: #007aff; border-color: #007aff; box-shadow: 0 0 10px rgba(0, 122, 255, 0.5); }
+        .date-chip.selected .date-day { color: #fff; }
+
         /* ВЫБОР ВРЕМЕНИ */
         .time-picker { display: none; margin-top: 20px; width: 100%; animation: fadeIn 0.3s ease; }
         .time-picker.active { display: block; }
@@ -62,6 +74,7 @@
         .time-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
         .time-chip { padding: 10px 16px; background-color: #2c2c2e; border: 2px solid #3a3a3c; border-radius: 8px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
         .time-chip.selected { background-color: #007aff; border-color: #007aff; box-shadow: 0 0 10px rgba(0, 122, 255, 0.5); }
+        .time-chip.taken { background-color: #4a1515 !important; color: #ff6b6b !important; pointer-events: none; opacity: 0.5 !important; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
         /* ФОРМА КОНТАКТОВ */
@@ -159,14 +172,70 @@
     <script>
         let tg = window.Telegram.WebApp;
         tg.expand();
-        
+
         let selectedTableName = "";
         let selectedTime = "";
+        let selectedDate = "";
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('start') === 'menu') switchTab('menu');
+            generateDateButtons();
         };
+
+        function generateDateButtons() {
+            const dateScroll = document.getElementById('dateScroll');
+            if (!dateScroll) return;
+
+            const today = new Date();
+            const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+            const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+
+                const dayName = i === 0 ? 'Сегодня' : days[date.getDay()];
+                const dayNum = date.getDate() + ' ' + months[date.getMonth()];
+                const dateStr = date.getFullYear() + '-' +
+                    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(date.getDate()).padStart(2, '0');
+
+                const chip = document.createElement('div');
+                chip.className = 'date-chip' + (i === 0 ? ' selected' : '');
+                chip.innerHTML = `<div class="date-day">${dayName}</div><div class="date-num">${dayNum}</div>`;
+                chip.onclick = () => selectDate(dateStr, chip);
+                dateScroll.appendChild(chip);
+            }
+
+            // Автоматически выбираем сегодня
+            const todayStr = today.getFullYear() + '-' +
+                String(today.getMonth() + 1).padStart(2, '0') + '-' +
+                String(today.getDate()).padStart(2, '0');
+            selectedDate = todayStr;
+        }
+
+        function selectDate(dateStr, element) {
+            selectedDate = dateStr;
+            document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
+
+            // Если стол уже выбран, обновляем доступность времени
+            if (selectedTableName) {
+                updateTimeAvailability();
+            }
+        }
+
+        function getZoneForTable(tableName) {
+            // Все столы в одной зоне "Общий лаунж"
+            return "Общий лаунж";
+        }
+
+        function getTableKey(tableName) {
+            // Формируем ключ в формате "zone_table" для API
+            const zone = getZoneForTable(tableName);
+            return zone + "_" + tableName;
+        }
 
         function switchTab(tab) {
             document.getElementById('section-map').classList.remove('active');
@@ -196,6 +265,7 @@
         function selectTable(tableName, element) {
             let contactForm = document.getElementById('contactForm');
             let timePicker = document.getElementById('timePicker');
+            let datePicker = document.getElementById('datePicker');
 
             let core = element.querySelector('.table-core');
             let isAlreadySelected = element.classList.contains('selected') || (core && core.classList.contains('selected'));
@@ -209,6 +279,7 @@
                 selectedTableName = "";
                 selectedTime = "";
                 if (timePicker) timePicker.style.display = 'none';
+                if (datePicker) datePicker.style.display = 'none';
                 if (contactForm) contactForm.style.display = 'none';
                 tg.MainButton.hide();
                 return;
@@ -217,38 +288,52 @@
             // Подсвечиваем только выбранный стол и его ядро
             element.classList.add('selected');
             if (core) core.classList.add('selected');
-            
-            selectedTableName = tableName; 
+
+            selectedTableName = tableName;
 
             if (contactForm) contactForm.style.display = 'none';
             tg.MainButton.hide();
             selectedTime = "";
 
-            // Запрашиваем занятость
-            fetch('/api/availability')
+            // Показываем выбор даты
+            if (datePicker) datePicker.style.display = 'block';
+
+            // Обновляем доступность времени для выбранной даты
+            updateTimeAvailability();
+        }
+
+        function updateTimeAvailability() {
+            let timePicker = document.getElementById('timePicker');
+
+            if (!selectedDate) {
+                if (timePicker) timePicker.style.display = 'none';
+                return;
+            }
+
+            fetch('/api/availability?date=' + selectedDate)
                 .then(response => response.json())
                 .then(data => {
-                    let takenTimes = data[tableName] || [];
-                    
+                    let tableKey = getTableKey(selectedTableName);
+                    let takenTimes = data[tableKey] || [];
+
                     document.querySelectorAll('.time-chip').forEach(chip => {
-                        let time = chip.innerText.trim(); 
+                        let time = chip.innerText.trim();
+                        chip.classList.remove('taken', 'selected');
+
                         if (takenTimes.includes(time)) {
-                            chip.style.backgroundColor = '#4a1515';
-                            chip.style.color = '#ff6b6b';
-                            chip.style.pointerEvents = 'none';
-                            chip.classList.remove('selected');
-                            chip.style.opacity = '0.5';
+                            chip.classList.add('taken');
                         } else {
-                            chip.style.backgroundColor = ''; 
+                            chip.style.backgroundColor = '';
                             chip.style.color = '';
-                            chip.style.pointerEvents = 'auto'; 
+                            chip.style.pointerEvents = 'auto';
                             chip.style.opacity = '1';
                         }
                     });
-                    
+
                     if (timePicker) timePicker.style.display = 'block';
                 })
                 .catch(err => {
+                    console.error("Ошибка получения доступности:", err);
                     tg.showAlert("Не удалось проверить занятость столов");
                 });
         }
@@ -291,6 +376,7 @@
             let payload = {
                 table: selectedTableName,
                 time: selectedTime,
+                date: selectedDate,
                 userId: userId,
                 username: username,
                 name: name,

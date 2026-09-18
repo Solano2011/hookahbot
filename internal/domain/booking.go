@@ -19,12 +19,14 @@ type Booking struct {
 	Zone      string    `json:"zone"`
 	Table     string    `json:"table"`
 	TimeSlot  string    `json:"timeslot"` // Убедись, что здесь TimeSlot с большой S
+	Date      string    `json:"date"`     // Формат YYYY-MM-DD
 	CreatedAt time.Time `json:"created_at"`
 }
 
 type BookingRepository interface {
 	SaveDraft(ctx context.Context, userID int64, zone string) error
 	SetTable(ctx context.Context, userID int64, table string) error
+	SetDraftDate(ctx context.Context, userID int64, date string) error
 	SetDraftTimeAndContacts(ctx context.Context, userID int64, timeSlot string, name string, phone string) error // Новый метод
 	CompleteBooking(ctx context.Context, userID int64, timeSlot string, name string, phone string) (*Booking, error)
 	GetByUserID(ctx context.Context, userID int64) (*Booking, error)
@@ -33,6 +35,7 @@ type BookingRepository interface {
 	DeleteConfirmed(ctx context.Context, userID int64) error
 	DeleteDraft(ctx context.Context, userID int64) error
 	GetAllActive(ctx context.Context) ([]Booking, error)
+	GetTakenTimeSlots(ctx context.Context, date string) (map[string][]string, error)
 	ResetAll(ctx context.Context) error
 }
 

@@ -41,6 +41,18 @@ func (r *BookingRepo) SetTable(ctx context.Context, userID int64, table string) 
 	return nil
 }
 
+func (r *BookingRepo) SetDraftDate(ctx context.Context, userID int64, date string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	b, exists := r.drafts[userID]
+	if !exists {
+		return domain.ErrBookingNotFound
+	}
+	b.Date = date
+	return nil
+}
+
 func (r *BookingRepo) SetDraftTimeAndContacts(ctx context.Context, userID int64, timeSlot string, name string, phone string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -149,4 +161,19 @@ func (r *BookingRepo) ResetAll(ctx context.Context) error {
 
 	r.drafts = make(map[int64]*domain.Booking)
 	return nil
+}
+
+func (r *BookingRepo) GetTakenTimeSlots(ctx context.Context, date string) (map[string][]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	result := make(map[string][]string)
+	for _, b := range r.drafts {
+		// В memory считаем confirmed те, у которых есть TimeSlot
+		if b.TimeSlot != "" && b.Date == date {
+			key := b.Zone + "_" + b.Table
+			result[key] = append(result[key], b.TimeSlot)
+		}
+	}
+	return result, nil
 }
